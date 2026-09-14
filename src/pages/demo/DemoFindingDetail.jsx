@@ -24,7 +24,11 @@ export default function DemoFindingDetail() {
       ? f.demo
         ? `Demo repository — ${repoAsset ? repoAsset.name : f.asset} is a simulated scan. No repository was actually scanned.`
         : `Imported from the GitHub connector — dependency data read from ${repoAsset ? repoAsset.name : f.asset}. Only the manifest and lockfile were used; source code was not read.`
-      : "Demo finding — fictional sample data for illustration.";
+      : f && f.source === "cloud-fixture"
+        ? f.demo
+          ? `Bundled sample fixture — ${f.fixture ? `"${f.fixture}" gave this finding ` : ""}from Kernveil's built-in demo dataset. No scan file was involved.`
+          : `Imported scan data — this finding came from the fixture ${f.fixture ? `"${f.fixture}" ` : ""}you uploaded. No live cloud account is connected; the evidence below is from the file.`
+        : "Demo finding — fictional sample data for illustration.";
 
   const changeStatus = (status) => {
     setFindingStatus(id, status);

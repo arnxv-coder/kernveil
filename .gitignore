@@ -25,5 +25,6 @@ screenshots/
 serve_dist.cjs
 verify_mvp.cjs
 verify_connectors*.cjs
+verify_cloud*.cjs
 probe_*.cjs
 test_mvp.py

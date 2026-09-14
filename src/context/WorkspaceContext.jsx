@@ -12,6 +12,7 @@ export const WORKSPACE_KEY = "kernveil.workspace.v1";
 export const FINDING_STATE_KEY = "kernveil.findingState.v1";
 export const FINDING_ACTIONS_KEY = "kernveil.findingActions.v1";
 export const CONNECTORS_KEY = "kernveil.connectors.v1";
+export const CLOUD_KEY = "kernveil.cloudScans.v1";
 
 const STATUS_LABEL = {
   open: "Open",
@@ -107,11 +108,13 @@ export function WorkspaceProvider({ children }) {
   const [stateMap, setStateMap] = useState(() => loadJSON(FINDING_STATE_KEY, {}));
   const [actions, setActions] = useState(() => loadJSON(FINDING_ACTIONS_KEY, []));
   const [connectors, setConnectors] = useState(() => loadJSON(CONNECTORS_KEY, []));
+  const [cloudScans, setCloudScans] = useState(() => loadJSON(CLOUD_KEY, []));
 
   useEffect(() => saveJSON(WORKSPACE_KEY, workspace), [workspace]);
   useEffect(() => saveJSON(FINDING_STATE_KEY, stateMap), [stateMap]);
   useEffect(() => saveJSON(FINDING_ACTIONS_KEY, actions), [actions]);
   useEffect(() => saveJSON(CONNECTORS_KEY, connectors), [connectors]);
+  useEffect(() => saveJSON(CLOUD_KEY, cloudScans), [cloudScans]);
 
   const createWorkspace = useCallback((name) => {
     const ts = Date.now();
@@ -123,6 +126,7 @@ export function WorkspaceProvider({ children }) {
     setStateMap({});
     setActions([]);
     setConnectors([]);
+    setCloudScans([]);
   }, []);
 
   const resetWorkspace = useCallback(() => {
@@ -130,6 +134,7 @@ export function WorkspaceProvider({ children }) {
     setStateMap({});
     setActions([]);
     setConnectors([]);
+    setCloudScans([]);
   }, []);
 
   const setFindingStatus = useCallback((id, status) => {
@@ -155,9 +160,29 @@ export function WorkspaceProvider({ children }) {
     setConnectors((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
+  const putCloudScan = useCallback((record) => {
+    setCloudScans((prev) => [...prev.filter((c) => c.id !== record.id), record]);
+    setActions((prev) => [
+      ...prev,
+      {
+        id: `ev-${Date.now()}-${record.id}`,
+        kind: "connector",
+        text: `Cloud fixture ${record.name} — imported · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"} across ${record.assets.length} assets`,
+        at: Date.now(),
+      },
+    ]);
+  }, []);
+
+  const removeCloudScan = useCallback((id) => {
+    setCloudScans((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
   const value = useMemo(() => {
-    /* Findings imported from connected repositories. */
-    const customRecords = connectors.flatMap((c) => c.findings || []);
+    /* Findings imported from connected repositories and cloud fixtures. */
+    const customRecords = [
+      ...connectors.flatMap((c) => c.findings || []),
+      ...cloudScans.flatMap((c) => c.findings || []),
+    ];
 
     /* Live findings: seed data + imported scan findings, each with
        persisted status overrides and appended history. */
@@ -213,7 +238,7 @@ export function WorkspaceProvider({ children }) {
       }
     }
 
-    const assets = [...ASSETS, ...connectors.map((c) => c.asset).filter(Boolean)];
+    const assets = [...ASSETS, ...connectors.map((c) => c.asset).filter(Boolean), ...cloudScans.flatMap((c) => c.assets || [])];
     const resolved = BASE.resolved + (live.resolved - SEED.byGrp.resolved);
 
     const overview = {
@@ -243,20 +268,31 @@ export function WorkspaceProvider({ children }) {
       );
     const activity = [...userActivity, ...SEED_ACTIVITY].slice(0, 8);
 
+    const cloudOpen = cloudScans
+      .flatMap((c) => c.findings || [])
+      .filter((f) => {
+        const status = stateMap[f.id] ? stateMap[f.id].status : f.status;
+        return status !== "resolved";
+      }).length;
+
     return {
       workspace,
       findings,
       assets,
       connectors,
+      cloudScans,
+      cloudOpen,
       overview,
       activity,
       setFindingStatus,
       putConnector,
       removeConnector,
+      putCloudScan,
+      removeCloudScan,
       createWorkspace,
       resetWorkspace,
     };
-  }, [workspace, stateMap, actions, connectors, setFindingStatus, putConnector, removeConnector, createWorkspace, resetWorkspace]);
+  }, [workspace, stateMap, actions, connectors, cloudScans, setFindingStatus, putConnector, removeConnector, putCloudScan, removeCloudScan, createWorkspace, resetWorkspace]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

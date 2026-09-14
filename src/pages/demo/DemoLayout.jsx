@@ -7,7 +7,7 @@ import { BrandMark } from "../../components/Icons.jsx";
 import { useWorkspace, initialsOf } from "../../context/WorkspaceContext.jsx";
 
 export default function DemoLayout({ page, children }) {
-  const { workspace, overview, resetWorkspace, assets } = useWorkspace();
+  const { workspace, overview, resetWorkspace, assets, cloudOpen } = useWorkspace();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -56,6 +56,18 @@ export default function DemoLayout({ page, children }) {
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 3l8 3.5v5c0 4.6-3.2 8.1-8 9.5-4.8-1.4-8-4.9-8-9.5v-5L12 3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
           <path d="M12 8v4M12 15.5h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      page: "cloud",
+      to: "/demo-cloud",
+      label: "Cloud checks",
+      count: cloudOpen || null,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 8h16M4 15h16M8 4v16M16 4v16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M7 11v1M12 11v1M17 11v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       ),
     },
