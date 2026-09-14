@@ -5,16 +5,9 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { animate } from "motion";
 import { gsap, reducedMotion } from "../../lib/anim.jsx";
-import { OVERVIEW, RISK_SERIES } from "../../lib/data.js";
+import { RISK_SERIES } from "../../lib/data.js";
 import { useDashboardFx } from "../../hooks/useDashboardFx.js";
-
-const ACTIVITY = [
-  { c: "var(--red)", txt: "New critical finding — exposed storage", t: "2m" },
-  { c: "var(--teal)", txt: "Monitoring rescan completed", t: "32m" },
-  { c: "var(--green)", txt: "2 findings resolved", t: "3h" },
-  { c: "var(--cyan)", txt: "Repository set to private (cms-admin)", t: "5h" },
-  { c: "var(--amber)", txt: "High finding acknowledged", t: "1d" },
-];
+import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
 function trendGeometry() {
   const W = 820;
@@ -133,6 +126,7 @@ function TrendChart() {
 export default function DemoOverview() {
   const rootRef = useRef(null);
   useDashboardFx(rootRef);
+  const { overview: o, activity } = useWorkspace();
 
   return (
     <div ref={rootRef}>
@@ -143,19 +137,19 @@ export default function DemoOverview() {
 
       <div className="kpi-grid" data-reveal-group>
         <div className="kpi" style={{ "--kpi-c": "var(--teal)" }}>
-          <span className="kpi-val" data-count="74">0</span>
+          <span className="kpi-val" data-count={o.risk}>0</span>
           <span className="kpi-label">Risk score <span className="kpi-delta">▼ 6 this month</span></span>
         </div>
         <div className="kpi" style={{ "--kpi-c": "var(--red)" }}>
-          <span className="kpi-val" data-count="2">0</span>
+          <span className="kpi-val" data-count={o.critical}>0</span>
           <span className="kpi-label"><span className="sev sev-critical">Critical</span></span>
         </div>
         <div className="kpi" style={{ "--kpi-c": "var(--orange)" }}>
-          <span className="kpi-val" data-count="9">0</span>
+          <span className="kpi-val" data-count={o.high}>0</span>
           <span className="kpi-label"><span className="sev sev-high">High</span></span>
         </div>
         <div className="kpi" style={{ "--kpi-c": "var(--cyan)" }}>
-          <span className="kpi-val" data-count="14">0</span>
+          <span className="kpi-val" data-count={o.assets}>0</span>
           <span className="kpi-label">Total assets</span>
         </div>
       </div>
@@ -174,10 +168,16 @@ export default function DemoOverview() {
                   </linearGradient>
                 </defs>
                 <circle className="gauge-track" cx="60" cy="60" r="50" />
-                <circle className="gauge-value dash-gauge" cx="60" cy="60" r="50" pathLength="100" stroke="url(#dashGauge)" />
+                <circle
+                  className="gauge-value dash-gauge"
+                  cx="60" cy="60" r="50"
+                  pathLength="100"
+                  stroke="url(#dashGauge)"
+                  data-offset={100 - o.risk}
+                />
               </svg>
               <span className="gauge-center">
-                <span className="gauge-num mono" data-count="74">0</span>
+                <span className="gauge-num mono" data-count={o.risk}>0</span>
                 <span className="gauge-label">/ 100</span>
               </span>
             </div>
@@ -186,8 +186,8 @@ export default function DemoOverview() {
                 Moderate and trending down. Two findings need attention this week — both affect <span className="mono">prod-web-01</span> traffic.
               </p>
               <div className="mini-sev">
-                <span className="sev sev-critical">2 Critical</span>
-                <span className="sev sev-high">9 High</span>
+                <span className="sev sev-critical">{o.critical} Critical</span>
+                <span className="sev sev-high">{o.high} High</span>
               </div>
             </div>
           </div>
@@ -196,10 +196,10 @@ export default function DemoOverview() {
         <section className="panel severity-panel">
           <span className="panel-label">Findings by severity</span>
           <div className="severity-bars">
-            <div className="sev-row"><span className="sev sev-critical">Critical</span><span className="sev-bar-track"><span className="sev-bar dash-sev" data-h="28" data-c="var(--red)"></span></span><span className="mono sev-count" data-count="2">0</span></div>
-            <div className="sev-row"><span className="sev sev-high">High</span><span className="sev-bar-track"><span className="sev-bar dash-sev" data-h="56" data-c="var(--orange)"></span></span><span className="mono sev-count" data-count="9">0</span></div>
-            <div className="sev-row"><span className="sev sev-medium">Medium</span><span className="sev-bar-track"><span className="sev-bar dash-sev" data-h="30" data-c="var(--amber)"></span></span><span className="mono sev-count" data-count="8">0</span></div>
-            <div className="sev-row"><span className="sev sev-low">Low</span><span className="sev-bar-track"><span className="sev-bar dash-sev" data-h="22" data-c="var(--slate)"></span></span><span className="mono sev-count" data-count="8">0</span></div>
+            <div className="sev-row"><span className="sev sev-critical">Critical</span><span className="sev-bar-track"><span className="sev-bar dash-sev" data-h="28" data-c="var(--red)"></span></span><span className="mono sev-count" data-count={o.critical}>0</span></div>
+            <div className="sev-row"><span className="sev sev-high">High</span><span className="sev-bar-track"><span className="sev-bar dash-sev" data-h="56" data-c="var(--orange)"></span></span><span className="mono sev-count" data-count={o.high}>0</span></div>
+            <div className="sev-row"><span className="sev sev-medium">Medium</span><span className="sev-bar-track"><span className="sev-bar dash-sev" data-h="30" data-c="var(--amber)"></span></span><span className="mono sev-count" data-count={o.medium}>0</span></div>
+            <div className="sev-row"><span className="sev sev-low">Low</span><span className="sev-bar-track"><span className="sev-bar dash-sev" data-h="22" data-c="var(--slate)"></span></span><span className="mono sev-count" data-count={o.low}>0</span></div>
           </div>
         </section>
 
@@ -208,21 +208,21 @@ export default function DemoOverview() {
           <div className="remed-ring">
             <svg viewBox="0 0 120 120" aria-hidden="true">
               <circle className="gauge-track" cx="60" cy="60" r="50" pathLength="100" />
-              <circle className="gauge-value dash-remed" cx="60" cy="60" r="50" pathLength="100" stroke="var(--teal)" />
+              <circle className="gauge-value dash-remed" cx="60" cy="60" r="50" pathLength="100" stroke="var(--teal)" data-offset={100 - o.resolved} />
             </svg>
             <span className="gauge-center">
-              <span className="gauge-num mono" data-count="23">0</span>
+              <span className="gauge-num mono" data-count={o.resolved}>0</span>
               <span className="gauge-label">resolved</span>
             </span>
           </div>
-          <p className="remed-note mono">23 of 30 findings resolved</p>
+          <p className="remed-note mono">{o.resolved} of {o.total} findings resolved</p>
         </section>
 
         <section className="panel activity-panel">
           <span className="panel-label">Recent activity</span>
           <ul className="activity-list">
-            {ACTIVITY.map((a, i) => (
-              <li key={i}>
+            {activity.map((a) => (
+              <li key={a.id}>
                 <span className="activity-dot" style={{ "--c": a.c }}></span>
                 <span className="activity-txt">{a.txt}</span>
                 <span className="activity-time mono">{a.t}</span>

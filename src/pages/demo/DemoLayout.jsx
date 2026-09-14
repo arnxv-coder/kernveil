@@ -1,66 +1,78 @@
 /* ============================================================
    Kernveil — demo workspace shell (topbar + sidebar + content)
    ============================================================ */
-import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { BrandMark } from "../../components/Icons.jsx";
-import { OVERVIEW } from "../../lib/data.js";
-
-const NAV = [
-  {
-    page: "overview",
-    to: "/demo",
-    label: "Overview",
-    count: null,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 13h6V4H4v9zM14 20h6v-9h-6v9zM4 20h6v-3H4v3zM14 7h6V4h-6v3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    page: "assets",
-    to: "/demo-assets",
-    label: "Assets",
-    count: OVERVIEW.assets,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="3" y="4" width="18" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.6" />
-        <rect x="3" y="13" width="18" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M7 7.5h.01M7 16.5h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    page: "findings",
-    to: "/demo-findings",
-    label: "Findings",
-    count: OVERVIEW.open,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 3l8 3.5v5c0 4.6-3.2 8.1-8 9.5-4.8-1.4-8-4.9-8-9.5v-5L12 3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-        <path d="M12 8v4M12 15.5h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    page: "connectors",
-    to: "/demo-connectors",
-    label: "Connectors",
-    count: null,
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M9 3v5M15 3v5M9 8h6v3a3 3 0 01-6 0V8z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M12 11v9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-];
+import { useWorkspace, initialsOf } from "../../context/WorkspaceContext.jsx";
+import { ASSETS } from "../../lib/data.js";
 
 export default function DemoLayout({ page, children }) {
+  const { workspace, overview, resetWorkspace } = useWorkspace();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const wrapRef = useRef(null);
+
+  const workspaceName = workspace?.name || "Acme Retail (sample)";
+  const accountInitials = initialsOf(workspaceName);
+
+  useEffect(() => {
+    if (!workspace) navigate("/demo-entry", { replace: true });
+  }, [workspace, navigate]);
+
+  if (!workspace) return null;
+
+  const NAV = [
+    {
+      page: "overview",
+      to: "/demo",
+      label: "Overview",
+      count: null,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 13h6V4H4v9zM14 20h6v-9h-6v9zM4 20h6v-3H4v3zM14 7h6V4h-6v3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      page: "assets",
+      to: "/demo-assets",
+      label: "Assets",
+      count: ASSETS.length,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.6" />
+          <rect x="3" y="13" width="18" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M7 7.5h.01M7 16.5h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      page: "findings",
+      to: "/demo-findings",
+      label: "Findings",
+      count: overview.open,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3l8 3.5v5c0 4.6-3.2 8.1-8 9.5-4.8-1.4-8-4.9-8-9.5v-5L12 3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M12 8v4M12 15.5h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      page: "connectors",
+      to: "/demo-connectors",
+      label: "Connectors",
+      count: null,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M9 3v5M15 3v5M9 8h6v3a3 3 0 01-6 0V8z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M12 11v9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+  ];
 
   const toggleSidebar = (open) => {
     setSidebarOpen(open);
@@ -107,9 +119,14 @@ export default function DemoLayout({ page, children }) {
             <BrandMark small />
             <span className="brand-name" style={{ fontSize: "1.05rem" }}>Kernveil</span>
           </Link>
-          <span className="workspace-switcher" title="Demo workspace — fictional sample data">
-            Acme Retail (sample) <span className="chv" aria-hidden="true">▾</span>
-          </span>
+          <button
+            className="workspace-switcher"
+            type="button"
+            title="Switch or reset this demo workspace"
+            onClick={() => navigate("/demo-entry")}
+          >
+            {workspaceName} <span className="chv" aria-hidden="true">▾</span>
+          </button>
         </div>
         <div className="topbar-right">
           <Link className="topbar-help" to="/#how-it-works">How it works</Link>
@@ -126,16 +143,26 @@ export default function DemoLayout({ page, children }) {
                 toggleAccount(!accountOpen);
               }}
             >
-              AR
+              {accountInitials}
             </button>
             <div className="account-menu" id="accountMenu" role="menu" hidden={!accountOpen}>
               <div className="account-menu-head">
-                <strong>Acme Retail</strong>
+                <strong>{workspaceName}</strong>
                 <span>Demo account · sample data only</span>
               </div>
-              <Link to="/demo" role="menuitem" onClick={() => toggleAccount(false)}>Switch workspace (demo)</Link>
+              <Link to="/demo-entry" role="menuitem" onClick={() => { toggleAccount(false); navigate("/demo-entry"); }}>Switch workspace</Link>
               <Link to="/" role="menuitem" onClick={() => toggleAccount(false)}>Back to the Kernveil site</Link>
-              <button type="button" role="menuitem" disabled>Sign out — not available in the demo</button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  resetWorkspace();
+                  toggleAccount(false);
+                  navigate("/");
+                }}
+              >
+                Sign out — end demo session
+              </button>
             </div>
           </div>
         </div>

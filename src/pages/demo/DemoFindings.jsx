@@ -4,13 +4,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { gsap, reducedMotion, SEV_RANK } from "../../lib/anim.jsx";
-import { FINDINGS } from "../../lib/data.js";
 import { severityPill, statusBadge } from "../../components/demo/badges.jsx";
+import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
 const CATEGORIES = ["Exposure", "Configuration", "Dependencies", "Identity", "Repositories", "Backups"];
 
-function sorted() {
-  return FINDINGS.slice().sort((a, b) => {
+function sorted(list) {
+  return list.slice().sort((a, b) => {
     const ra = a.status === "resolved" ? 1 : 0;
     const rb = b.status === "resolved" ? 1 : 0;
     if (ra !== rb) return ra - rb;
@@ -23,6 +23,7 @@ export default function DemoFindings() {
   const tbodyRef = useRef(null);
   const REDUCED = reducedMotion();
   const navigate = useNavigate();
+  const { findings: allFindings } = useWorkspace();
 
   const [term, setTerm] = useState("");
   const [sev, setSev] = useState("all");
@@ -31,14 +32,14 @@ export default function DemoFindings() {
 
   const rows = useMemo(() => {
     const q = term.trim().toLowerCase();
-    return sorted().filter((f) => {
+    return sorted(allFindings).filter((f) => {
       if (sev !== "all" && f.severity !== sev) return false;
       if (status !== "all" && f.status !== status) return false;
       if (cat !== "all" && f.category !== cat) return false;
       if (q && !(f.title + f.asset + f.category + f.summary).toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [term, sev, status, cat]);
+  }, [term, sev, status, cat, allFindings]);
 
   const rowsKey = rows.map((f) => f.id).join(",");
 
@@ -199,7 +200,7 @@ export default function DemoFindings() {
         </div>
       </div>
 
-      <p className="result-count" id="findingCount">{rows.length} of {FINDINGS.length} findings shown</p>
+      <p className="result-count" id="findingCount">{rows.length} of {allFindings.length} findings shown</p>
     </div>
   );
 }

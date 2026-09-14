@@ -270,7 +270,7 @@ export default function MarketingPage() {
             >
               Sign in
             </button>
-            <Link className="btn btn-primary btn-sm" to="/demo">
+            <Link className="btn btn-primary btn-sm" to="/demo-entry">
               Explore the demo
               <ArrowIcon />
             </Link>
@@ -299,7 +299,7 @@ export default function MarketingPage() {
         </nav>
         <div className="mobile-menu-actions">
           <a className="btn btn-secondary" href="#capabilities">Sign in</a>
-          <Link className="btn btn-primary" to="/demo" onClick={() => setMobileOpen(false)}>
+          <Link className="btn btn-primary" to="/demo-entry" onClick={() => setMobileOpen(false)}>
             Explore the demo
             <ArrowIcon />
           </Link>
@@ -365,7 +365,7 @@ export default function MarketingPage() {
                 understand the risk, and take the next right step — without needing a dedicated security team.
               </p>
               <div className="hero-cta" data-hero-cta>
-                <Link className="btn btn-primary btn-lg" to="/demo" data-magnetic>
+                <Link className="btn btn-primary btn-lg" to="/demo-entry" data-magnetic>
                   Explore the demo
                   <ArrowIcon />
                 </Link>
@@ -781,7 +781,7 @@ export default function MarketingPage() {
                 Kernveil gives growing companies a clearer way to understand and improve their security.
               </p>
               <div className="final-cta-actions">
-                <Link className="btn btn-primary btn-lg" to="/demo" data-magnetic>
+                <Link className="btn btn-primary btn-lg" to="/demo-entry" data-magnetic>
                   Explore the demo
                   <ArrowIcon />
                 </Link>
@@ -867,9 +867,9 @@ const MODAL_CONTENT = {
   signin: {
     label: "Product preview",
     badge: ["badge-teal", "Interactive demo"],
-    title: "Kernveil is not a live app yet",
-    body: "This site is an interactive product preview with seeded, clearly-fictional demo data. There are no user accounts or sign-ins to create here.",
-    cta: { to: "/demo", text: "Explore the demo instead" },
+    title: "Open the interactive demo",
+    body: "Start a personal demo workspace with a name. You can change finding statuses, walk through remediation, and see the dashboard update — all in your browser.",
+    cta: { to: "/demo-entry", text: "Create demo workspace" },
   },
   contact: {
     label: "Contact",

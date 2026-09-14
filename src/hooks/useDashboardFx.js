@@ -14,8 +14,14 @@ export function useDashboardFx(rootRef) {
       pop(root.querySelectorAll(".kpi"), 0.1);
       pop(root.querySelectorAll(".overview-grid > .panel"), 0.12);
 
-      gsap.to(".dash-gauge", { strokeDashoffset: 26, duration: 1.6, ease: "power2.inOut", delay: 0.3 });
-      gsap.fromTo(".dash-remed", { strokeDashoffset: 100 }, { strokeDashoffset: 77, duration: 1.6, ease: "power2.inOut", delay: 0.3 });
+      const gauge = root.querySelector(".dash-gauge");
+      if (gauge) {
+        gsap.to(gauge, { strokeDashoffset: parseFloat(gauge.getAttribute("data-offset") || "26"), duration: 1.6, ease: "power2.inOut", delay: 0.3 });
+      }
+      const remed = root.querySelector(".dash-remed");
+      if (remed) {
+        gsap.fromTo(remed, { strokeDashoffset: 100 }, { strokeDashoffset: parseFloat(remed.getAttribute("data-offset") || "77"), duration: 1.6, ease: "power2.inOut", delay: 0.3 });
+      }
 
       root.querySelectorAll(".dash-sev").forEach((b, i) => {
         gsap.to(b, { width: b.getAttribute("data-h") + "%", duration: 1.1, ease: "power3.out", delay: 0.4 + i * 0.1 });

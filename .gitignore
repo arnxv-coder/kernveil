@@ -19,3 +19,9 @@ Thumbs.db
 npm-debug.log*
 # Misc artifacts
 index.zip
+
+# Local verification
+screenshots/
+serve_dist.cjs
+verify_mvp.cjs
+test_mvp.py

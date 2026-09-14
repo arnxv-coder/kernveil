@@ -3,20 +3,31 @@
    ============================================================ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { gsap, reducedMotion, TYPE_ICONS, STATUS_META } from "../../lib/anim.jsx";
-import { ASSETS, ASSET_FINDING_MAP } from "../../lib/data.js";
+import { ASSETS } from "../../lib/data.js";
 import { riskBadge } from "../../components/demo/badges.jsx";
+import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
 const label = (k) => k.charAt(0).toUpperCase() + k.slice(1);
 
 export default function DemoAssets() {
   const rootRef = useRef(null);
   const hideRowRef = useRef(null);
+  const { findings } = useWorkspace();
   const [term, setTerm] = useState("");
   const [type, setType] = useState("all");
   const [env, setEnv] = useState("all");
   const [source, setSource] = useState("all");
   const [selected, setSelected] = useState(null);
   const REDUCED = reducedMotion();
+
+  const findingMap = useMemo(
+    () =>
+      findings.reduce((m, f) => {
+        (m[f.asset] = m[f.asset] || []).push(f);
+        return m;
+      }, {}),
+    [findings]
+  );
 
   const rows = useMemo(() => {
     const q = term.trim().toLowerCase();
@@ -80,7 +91,7 @@ export default function DemoAssets() {
   const openSheet = (id) => setSelected(ASSETS.find((a) => a.id === id) || null);
 
   const asset = selected;
-  const finds = asset ? (ASSET_FINDING_MAP[asset.id] || []) : [];
+  const finds = asset ? (findingMap[asset.id] || []) : [];
 
   return (
     <div ref={rootRef}>

@@ -1,20 +1,30 @@
 /* ============================================================
    Kernveil — demo Finding detail page
    ============================================================ */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { gsap, reducedMotion, TYPE_ICONS } from "../../lib/anim.jsx";
-import { FINDINGS, ASSETS } from "../../lib/data.js";
+import { ASSETS } from "../../lib/data.js";
 import { severityPill, statusBadge } from "../../components/demo/badges.jsx";
+import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
 export default function DemoFindingDetail() {
   const rootRef = useRef(null);
   const REDUCED = reducedMotion();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const { findings, setFindingStatus } = useWorkspace();
+  const [saved, setSaved] = useState(false);
 
   const id = params.get("id");
-  const f = FINDINGS.find((x) => x.id === id);
+  const f = findings.find((x) => x.id === id);
+
+  const changeStatus = (status) => {
+    setFindingStatus(id, status);
+    setSaved(true);
+    window.clearTimeout(changeStatus._t);
+    changeStatus._t = window.setTimeout(() => setSaved(false), 3200);
+  };
 
   const related = (f?.related || [])
     .map((rid) => {
@@ -48,7 +58,7 @@ export default function DemoFindingDetail() {
     ));
 
   const steps =
-    f && f.steps && f.steps.length
+    f && f.status !== "resolved" && f.steps && f.steps.length
       ? <div className="detail-block action-block" style={{ marginTop: 0 }}>
           <h4>Recommended next step</h4>
           <div className="action-steps">
@@ -151,6 +161,51 @@ export default function DemoFindingDetail() {
               </div>
 
               <div className="detail-col-stack">
+                <div className="panel detail-block status-panel">
+                  <h4>Remediation status</h4>
+                  <div className="status-badge-row">
+                    {statusBadge(f.status)}
+                    {saved && <span className="status-saved">Saved to this workspace</span>}
+                  </div>
+                  <p className="status-note">
+                    {f.status === "resolved"
+                      ? "This finding is closed. Kernveil keeps monitoring and will reopen it if the issue returns."
+                      : "Change the status here to push the finding through remediation. Your change is saved in this demo workspace."}
+                  </p>
+                  <div className="status-actions">
+                    {f.status === "open" && (
+                      <button type="button" className="btn btn-primary btn-sm" onClick={() => changeStatus("in-progress")}>
+                        Mark in progress
+                      </button>
+                    )}
+                    {f.status === "in-progress" && (
+                      <>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => changeStatus("resolved")}>
+                          Mark resolved
+                        </button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => changeStatus("open")}>
+                          Back to open
+                        </button>
+                      </>
+                    )}
+                    {f.status === "approved" && (
+                      <>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => changeStatus("resolved")}>
+                          Mark resolved
+                        </button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => changeStatus("open")}>
+                          Back to open
+                        </button>
+                      </>
+                    )}
+                    {f.status === "resolved" && (
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => changeStatus("open")}>
+                        Reopen finding
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {steps}
 
                 <div className="panel detail-block">

@@ -8,8 +8,10 @@ import "../styles/base.css";
 import "../styles/marketing.css";
 import "../styles/dashboard.css";
 
+import { WorkspaceProvider } from "./context/WorkspaceContext.jsx";
 import MotionNotice from "./components/MotionNotice.jsx";
 import MarketingPage from "./pages/MarketingPage.jsx";
+import DemoEntry from "./pages/demo/DemoEntry.jsx";
 import DemoLayout from "./pages/demo/DemoLayout.jsx";
 import DemoOverview from "./pages/demo/DemoOverview.jsx";
 import DemoAssets from "./pages/demo/DemoAssets.jsx";
@@ -31,15 +33,18 @@ function App() {
     <BrowserRouter>
       <BodyClass />
       <MotionNotice />
-      <Routes>
-        <Route path="/" element={<MarketingPage />} />
-        <Route path="/demo" element={<DemoLayout page="overview"><DemoOverview /></DemoLayout>} />
-        <Route path="/demo-assets" element={<DemoLayout page="assets"><DemoAssets /></DemoLayout>} />
-        <Route path="/demo-findings" element={<DemoLayout page="findings"><DemoFindings /></DemoLayout>} />
-        <Route path="/demo-connectors" element={<DemoLayout page="connectors"><DemoConnectors /></DemoLayout>} />
-        <Route path="/demo-finding" element={<DemoLayout page="finding-detail"><DemoFindingDetail /></DemoLayout>} />
-        <Route path="*" element={<MarketingPage />} />
-      </Routes>
+      <WorkspaceProvider>
+        <Routes>
+          <Route path="/" element={<MarketingPage />} />
+          <Route path="/demo-entry" element={<DemoEntry />} />
+          <Route path="/demo" element={<DemoLayout page="overview"><DemoOverview /></DemoLayout>} />
+          <Route path="/demo-assets" element={<DemoLayout page="assets"><DemoAssets /></DemoLayout>} />
+          <Route path="/demo-findings" element={<DemoLayout page="findings"><DemoFindings /></DemoLayout>} />
+          <Route path="/demo-connectors" element={<DemoLayout page="connectors"><DemoConnectors /></DemoLayout>} />
+          <Route path="/demo-finding" element={<DemoLayout page="finding-detail"><DemoFindingDetail /></DemoLayout>} />
+          <Route path="*" element={<MarketingPage />} />
+        </Routes>
+      </WorkspaceProvider>
     </BrowserRouter>
   );
 }
