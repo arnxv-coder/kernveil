@@ -3,8 +3,9 @@
 .env.local
 .env*.local
 
-# Node (nothing to install, but clean anyway)
+# Node
 node_modules/
+dist/
 
 # OS / editor
 .DS_Store
