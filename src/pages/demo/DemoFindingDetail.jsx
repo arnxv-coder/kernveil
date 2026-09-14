@@ -4,7 +4,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { gsap, reducedMotion, TYPE_ICONS } from "../../lib/anim.jsx";
-import { ASSETS } from "../../lib/data.js";
 import { severityPill, statusBadge } from "../../components/demo/badges.jsx";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
@@ -13,11 +12,19 @@ export default function DemoFindingDetail() {
   const REDUCED = reducedMotion();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { findings, setFindingStatus } = useWorkspace();
+  const { findings, assets, setFindingStatus } = useWorkspace();
   const [saved, setSaved] = useState(false);
 
   const id = params.get("id");
   const f = findings.find((x) => x.id === id);
+
+  const repoAsset = f ? assets.find((a) => a.id === f.asset) : null;
+  const sourceNote =
+    f && f.source === "github-connector"
+      ? f.demo
+        ? `Demo repository — ${repoAsset ? repoAsset.name : f.asset} is a simulated scan. No repository was actually scanned.`
+        : `Imported from the GitHub connector — dependency data read from ${repoAsset ? repoAsset.name : f.asset}. Only the manifest and lockfile were used; source code was not read.`
+      : "Demo finding — fictional sample data for illustration.";
 
   const changeStatus = (status) => {
     setFindingStatus(id, status);
@@ -28,7 +35,7 @@ export default function DemoFindingDetail() {
 
   const related = (f?.related || [])
     .map((rid) => {
-      const a = ASSETS.find((x) => x.id === rid);
+      const a = assets.find((x) => x.id === rid);
       if (!a) return null;
       return (
         <li className="related-asset" style={{ listStyle: "none" }} key={rid}>
@@ -221,7 +228,7 @@ export default function DemoFindingDetail() {
             </div>
 
             <p className="result-count" style={{ marginTop: "1.4rem", textAlign: "center" }}>
-              Demo finding — fictional sample data for illustration.
+              {sourceNote}
             </p>
           </>
         )}

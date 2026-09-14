@@ -5,10 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BrandMark } from "../../components/Icons.jsx";
 import { useWorkspace, initialsOf } from "../../context/WorkspaceContext.jsx";
-import { ASSETS } from "../../lib/data.js";
 
 export default function DemoLayout({ page, children }) {
-  const { workspace, overview, resetWorkspace } = useWorkspace();
+  const { workspace, overview, resetWorkspace, assets } = useWorkspace();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -39,7 +38,7 @@ export default function DemoLayout({ page, children }) {
       page: "assets",
       to: "/demo-assets",
       label: "Assets",
-      count: ASSETS.length,
+      count: assets.length,
       icon: (
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <rect x="3" y="4" width="18" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.6" />

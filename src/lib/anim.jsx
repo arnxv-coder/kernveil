@@ -86,6 +86,15 @@ export const TYPE_ICONS = {
       <path d="M5.5 19c.7-3.2 3.2-5.5 6.5-5.5s5.8 2.3 6.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
+  repository: (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="5.5" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M4.5 19a4 4 0 0 1 4-4h7a4 4 0 0 1 4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M12 7.7v6.3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M8.5 14a3.5 3.5 0 0 0 3.5-3.5A3.5 3.5 0 0 0 8.5 14z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+      <path d="M15.5 14a3.5 3.5 0 0 1-3.5-3.5A3.5 3.5 0 0 1 15.5 14z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+    </svg>
+  ),
   cloud: (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M4 8h16M4 15h16M8 4v16M16 4v16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

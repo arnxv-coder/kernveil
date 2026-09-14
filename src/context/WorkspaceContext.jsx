@@ -1,15 +1,17 @@
 /* ============================================================
    Kernveil — demo workspace state (Context + localStorage).
    One source of truth for the seeded workspace, live finding
-   statuses, and the activity trail. Everything persists in the
-   browser so a "session" survives reload and navigation.
+   statuses, GitHub connectors, and the activity trail. Everything
+   persists in the browser so a "session" survives reload and
+   navigation.
    ============================================================ */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { FINDINGS, WORKSPACE, OVERVIEW } from "../lib/data.js";
+import { ASSETS, FINDINGS, WORKSPACE, OVERVIEW } from "../lib/data.js";
 
 export const WORKSPACE_KEY = "kernveil.workspace.v1";
 export const FINDING_STATE_KEY = "kernveil.findingState.v1";
 export const FINDING_ACTIONS_KEY = "kernveil.findingActions.v1";
+export const CONNECTORS_KEY = "kernveil.connectors.v1";
 
 const STATUS_LABEL = {
   open: "Open",
@@ -83,8 +85,8 @@ const BASE = {
   severity: { critical: OVERVIEW.critical, high: OVERVIEW.high, medium: OVERVIEW.medium, low: OVERVIEW.low },
 };
 
-function activityMeta(action) {
-  const f = FINDINGS.find((x) => x.id === action.findingId);
+function activityMeta(action, allFindings) {
+  const f = allFindings.find((x) => x.id === action.findingId);
   const title = f ? f.title : "a finding";
   switch (action.status) {
     case "resolved":
@@ -104,10 +106,12 @@ export function WorkspaceProvider({ children }) {
   const [workspace, setWorkspace] = useState(() => loadJSON(WORKSPACE_KEY, null));
   const [stateMap, setStateMap] = useState(() => loadJSON(FINDING_STATE_KEY, {}));
   const [actions, setActions] = useState(() => loadJSON(FINDING_ACTIONS_KEY, []));
+  const [connectors, setConnectors] = useState(() => loadJSON(CONNECTORS_KEY, []));
 
   useEffect(() => saveJSON(WORKSPACE_KEY, workspace), [workspace]);
   useEffect(() => saveJSON(FINDING_STATE_KEY, stateMap), [stateMap]);
   useEffect(() => saveJSON(FINDING_ACTIONS_KEY, actions), [actions]);
+  useEffect(() => saveJSON(CONNECTORS_KEY, connectors), [connectors]);
 
   const createWorkspace = useCallback((name) => {
     const ts = Date.now();
@@ -118,12 +122,14 @@ export function WorkspaceProvider({ children }) {
     });
     setStateMap({});
     setActions([]);
+    setConnectors([]);
   }, []);
 
   const resetWorkspace = useCallback(() => {
     setWorkspace(null);
     setStateMap({});
     setActions([]);
+    setConnectors([]);
   }, []);
 
   const setFindingStatus = useCallback((id, status) => {
@@ -132,9 +138,30 @@ export function WorkspaceProvider({ children }) {
     setActions((prev) => [...prev, { id: `${id}-${at}`, findingId: id, status, at }]);
   }, []);
 
+  const putConnector = useCallback((record) => {
+    setConnectors((prev) => [...prev.filter((c) => c.id !== record.id), record]);
+    setActions((prev) => [
+      ...prev,
+      {
+        id: `ev-${Date.now()}-${record.id}`,
+        kind: "connector",
+        text: `Repository ${record.repo} — ${record.mode === "demo" ? "demo" : "dependency"} scan complete · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"}`,
+        at: Date.now(),
+      },
+    ]);
+  }, []);
+
+  const removeConnector = useCallback((id) => {
+    setConnectors((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
   const value = useMemo(() => {
-    /* Live findings: seed data + persisted status overrides + appended history. */
-    const findings = FINDINGS.map((f) => {
+    /* Findings imported from connected repositories. */
+    const customRecords = connectors.flatMap((c) => c.findings || []);
+
+    /* Live findings: seed data + imported scan findings, each with
+       persisted status overrides and appended history. */
+    const mergeFinding = (f) => {
       const st = stateMap[f.id];
       const status = st ? st.status : f.status;
       const own = actions.filter((a) => a.findingId === f.id);
@@ -149,7 +176,9 @@ export function WorkspaceProvider({ children }) {
           ]
         : f.history;
       return { ...f, status, history, last: st ? "just now" : f.last };
-    });
+    };
+
+    const findings = [...FINDINGS.map(mergeFinding), ...customRecords.map(mergeFinding)];
 
     /* Overview deltas relative to the narrative baseline. */
     const live = { open: SEED.byGrp.open, wip: SEED.byGrp.wip, resolved: SEED.byGrp.resolved };
@@ -173,9 +202,22 @@ export function WorkspaceProvider({ children }) {
       }
     }
 
+    /* Imported findings raise the score gently at half severity weight,
+       and drop back off when they are resolved. */
+    for (const f of customRecords) {
+      const status = stateMap[f.id] ? stateMap[f.id].status : f.status;
+      live[GROUP[status]] += 1;
+      if (status !== "resolved") {
+        liveSev[f.severity] += 1;
+        riskDelta += Math.round(SEV_WEIGHT[f.severity] / 2);
+      }
+    }
+
+    const assets = [...ASSETS, ...connectors.map((c) => c.asset).filter(Boolean)];
     const resolved = BASE.resolved + (live.resolved - SEED.byGrp.resolved);
+
     const overview = {
-      risk: clamp(BASE.risk + riskDelta, 0, 100),
+      risk: clamp(Math.round(BASE.risk + riskDelta), 0, 100),
       critical: BASE.severity.critical + (liveSev.critical - SEED.sevNonResolved.critical),
       high: BASE.severity.high + (liveSev.high - SEED.sevNonResolved.high),
       medium: BASE.severity.medium + (liveSev.medium - SEED.sevNonResolved.medium),
@@ -183,29 +225,38 @@ export function WorkspaceProvider({ children }) {
       open: BASE.open + (live.open - SEED.byGrp.open),
       inProgress: BASE.inProgress + (live.wip - SEED.byGrp.wip),
       resolved,
-      total: BASE.total,
-      assets: OVERVIEW.assets,
+      total: BASE.total + customRecords.length,
+      assets: assets.length,
       remedPct: resolved,
       delta: OVERVIEW.delta,
       lastSync: OVERVIEW.lastSync,
     };
 
-    /* Recent activity: user actions first, then the seeded trail. */
+    /* Recent activity: connector events and finding actions first, then
+       the seeded trail. */
     const userActivity = [...actions]
       .reverse()
-      .map((a) => ({ id: a.id, ...activityMeta(a), t: "just now" }));
+      .map((a) =>
+        a.kind === "connector"
+          ? { id: a.id, c: a.c || "var(--teal)", txt: a.text, t: "just now" }
+          : { id: a.id, ...activityMeta(a, findings), t: "just now" }
+      );
     const activity = [...userActivity, ...SEED_ACTIVITY].slice(0, 8);
 
     return {
       workspace,
       findings,
+      assets,
+      connectors,
       overview,
       activity,
       setFindingStatus,
+      putConnector,
+      removeConnector,
       createWorkspace,
       resetWorkspace,
     };
-  }, [workspace, stateMap, actions, setFindingStatus, createWorkspace, resetWorkspace]);
+  }, [workspace, stateMap, actions, connectors, setFindingStatus, putConnector, removeConnector, createWorkspace, resetWorkspace]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

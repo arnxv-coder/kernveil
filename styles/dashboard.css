@@ -1350,6 +1350,170 @@ body.demo-body {
   background: var(--lg-c, var(--slate));
 }
 
+/* --- connector form & connected states --------------------------- */
+
+.conn-form {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.conn-form .field label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 550;
+  color: var(--text-2);
+  font-family: var(--font-display);
+  margin-bottom: 0.25rem;
+}
+
+.conn-form .field label .opt {
+  font-weight: 400;
+  color: var(--text-3);
+  margin-left: 0.4rem;
+}
+
+.conn-form .field input {
+  width: 100%;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 0.75rem 0.85rem;
+  font-size: 0.92rem;
+  color: var(--text-1);
+  transition: border-color var(--dur), box-shadow var(--dur);
+}
+
+.conn-form .field input::placeholder {
+  color: var(--text-3);
+}
+
+.conn-form .field input:focus {
+  outline: none;
+  border-color: rgba(42, 230, 199, 0.6);
+  box-shadow: 0 0 0 3px rgba(42, 230, 199, 0.12);
+}
+
+.conn-form .field-hint {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--text-3);
+  margin-top: 0.3rem;
+  line-height: 1.4;
+}
+
+/* --- scan progress ------------------------------------------------ */
+
+.scan-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 1rem 0;
+}
+
+.scan-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid var(--border-strong);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: kv-spin 0.7s linear infinite;
+}
+
+@keyframes kv-spin {
+  to { transform: rotate(360deg); }
+}
+
+.scan-label {
+  font-size: 0.88rem;
+  color: var(--text-1);
+  font-weight: 500;
+}
+
+.conn-scan-note {
+  font-size: 0.76rem;
+  color: var(--text-3);
+  line-height: 1.55;
+  margin-top: 0.25rem;
+}
+
+/* --- connected / success ------------------------------------------ */
+
+.conn-connected {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.conn-healthy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-radius: var(--r-sm);
+  background: rgba(79, 214, 154, 0.06);
+  border: 1px solid rgba(79, 214, 154, 0.2);
+  color: var(--green);
+}
+
+.conn-healthy svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 0.08rem;
+}
+
+.conn-healthy b {
+  display: block;
+  font-weight: 600;
+  color: var(--text-1);
+  font-size: 0.86rem;
+  margin-bottom: 0.15rem;
+}
+
+.conn-healthy span {
+  font-size: 0.78rem;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* --- error -------------------------------------------------------- */
+
+.conn-error {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  border-radius: var(--r-sm);
+  background: rgba(239, 106, 114, 0.06);
+  border: 1px solid rgba(239, 106, 114, 0.22);
+  margin-top: 0.3rem;
+}
+
+.conn-error b {
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--red);
+}
+
+.conn-error > span:not(.conn-error-actions) {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  line-height: 1.55;
+}
+
+.conn-error-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}
+
+.conn-disconnect {
+  color: var(--red);
+}
+
+.conn-disconnect:hover {
+  background: rgba(239, 106, 114, 0.08);
+}
+
 /* ============================================================
    Risk trend chart (overview)
    ============================================================ */

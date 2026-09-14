@@ -3,7 +3,6 @@
    ============================================================ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { gsap, reducedMotion, TYPE_ICONS, STATUS_META } from "../../lib/anim.jsx";
-import { ASSETS } from "../../lib/data.js";
 import { riskBadge } from "../../components/demo/badges.jsx";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
@@ -12,7 +11,7 @@ const label = (k) => k.charAt(0).toUpperCase() + k.slice(1);
 export default function DemoAssets() {
   const rootRef = useRef(null);
   const hideRowRef = useRef(null);
-  const { findings } = useWorkspace();
+  const { assets, findings } = useWorkspace();
   const [term, setTerm] = useState("");
   const [type, setType] = useState("all");
   const [env, setEnv] = useState("all");
@@ -31,7 +30,7 @@ export default function DemoAssets() {
 
   const rows = useMemo(() => {
     const q = term.trim().toLowerCase();
-    return ASSETS.filter((a) => {
+    return assets.filter((a) => {
       if (type !== "all" && a.type !== type) return false;
       if (env !== "all" && a.env !== env) return false;
       if (source !== "all" && a.source !== source) return false;
@@ -88,7 +87,7 @@ export default function DemoAssets() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
-  const openSheet = (id) => setSelected(ASSETS.find((a) => a.id === id) || null);
+  const openSheet = (id) => setSelected(assets.find((a) => a.id === id) || null);
 
   const asset = selected;
   const finds = asset ? (findingMap[asset.id] || []) : [];
@@ -97,7 +96,7 @@ export default function DemoAssets() {
     <div ref={rootRef}>
       <header className="page-head">
         <h1 className="page-title">Assets</h1>
-        <p className="page-sub">The 14 systems, repositories, and websites Kernveil monitors in this workspace.</p>
+        <p className="page-sub">The {assets.length} systems, repositories, and websites Kernveil monitors in this workspace.</p>
       </header>
 
       <div className="toolbar">
@@ -120,6 +119,7 @@ export default function DemoAssets() {
             <option value="api">API</option>
             <option value="website">Website</option>
             <option value="identity">Identity</option>
+            <option value="repository">Repository</option>
           </select>
         </div>
         <div className="select-field">
@@ -139,6 +139,7 @@ export default function DemoAssets() {
             <option value="Code">Code</option>
             <option value="Website">Website</option>
             <option value="Backups">Backups</option>
+            <option value="GitHub">GitHub</option>
           </select>
         </div>
       </div>
@@ -202,7 +203,7 @@ export default function DemoAssets() {
         </div>
       </div>
 
-      <p className="result-count" id="assetCount">{rows.length} of {ASSETS.length} assets shown</p>
+      <p className="result-count" id="assetCount">{rows.length} of {assets.length} assets shown</p>
 
       {asset && (
         <section className="panel" id="assetSheet">
