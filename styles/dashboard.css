@@ -3205,3 +3205,44 @@ body.demo-body {
     flex-direction: column;
   }
 }
+
+/* ============================================================
+   Identity checks (Phase 6)
+   Read-only directory review — same register pattern as backup
+   health, with an explicit "never touches a live provider" banner.
+   ============================================================ */
+
+.conn-safe {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  margin: 0.7rem 0 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px dashed rgba(42, 230, 199, 0.28);
+  border-radius: var(--r-md);
+  background: rgba(42, 230, 199, 0.05);
+  color: var(--text-2);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.conn-safe-ic {
+  flex: 0 0 auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin-top: 0.05rem;
+  background: rgba(42, 230, 199, 0.16);
+  color: var(--teal);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.detail-block b.bad,
+.bk-meta b.bad,
+.cell-sub b.bad {
+  color: var(--red);
+  font-weight: 600;
+}

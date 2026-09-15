@@ -54,9 +54,9 @@ export const SOURCE_SCOPES = {
     "DNS records — SPF, DKIM, DMARC",
   ],
   identity: [
-    "Credential age and rotation",
-    "Sign-in patterns and anomalies",
-    "MFA coverage and policy hygiene",
+    "Imported directory exports (never a live provider)",
+    "Role scope, MFA enrolment, and admin history",
+    "Account retention and last-use signals",
   ],
   backup: [
     "Retention schedules and coverage",
@@ -123,6 +123,11 @@ export function syncNoteOf(record) {
     return record.findings && record.findings.length
       ? `${record.records} systems · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"}`
       : `All ${record.records} systems protected`;
+  }
+  if (record.kind === "identity") {
+    return record.findings && record.findings.length
+      ? `${record.records} identities · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"}`
+      : `All ${record.records} identities meet the standards`;
   }
   return "Scan complete";
 }

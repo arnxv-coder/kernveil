@@ -17,6 +17,7 @@ import { scanRepository, buildDemoScan } from "../../lib/githubScan.js";
 import { analyzeDemoFixture } from "../../lib/cloudFixture.js";
 import { analyzeDemoSite, analyzeHostScan, normalizeHost } from "../../lib/websiteScan.js";
 import { buildDemoBackupResult, buildBackupRecord } from "../../lib/backupScan.js";
+import { buildDemoIdentityResult, buildIdentityRecord } from "../../lib/identityScan.js";
 import {
   CONN_STATE_META,
   SOURCE_SCOPES,
@@ -153,12 +154,13 @@ function SyncBlock({ source, record, id, lastId }) {
 export default function DemoConnectors() {
   const rootRef = useRef(null);
   const REDUCED = reducedMotion();
-  const { connectors, findings, putConnector, removeConnector, noteConnectorFailure, cloudScans, putCloudScan, removeCloudScan, webScans, putWebScan, removeWebScan, backupScans, putBackupScan, removeBackupScan } = useWorkspace();
+  const { connectors, findings, putConnector, removeConnector, noteConnectorFailure, cloudScans, putCloudScan, removeCloudScan, webScans, putWebScan, removeWebScan, backupScans, putBackupScan, removeBackupScan, identityScans, putIdentityScan, removeIdentityScan } = useWorkspace();
 
   const gh = connectors.find((c) => c.kind === "github");
   const cloud = cloudScans[0];
   const web = webScans[0];
   const backup = backupScans[0];
+  const identity = identityScans[0];
 
   /* --- github local state --- */
   const [repoInput, setRepoInput] = useState("");
@@ -187,6 +189,12 @@ export default function DemoConnectors() {
   const [bkError, setBkError] = useState(null);
   const bkCancelRef = useRef(false);
 
+  /* --- identity local state (connector-page mirror of /demo-identity) --- */
+  const [idpPhase, setIdpPhase] = useState("idle"); // idle | importing
+  const [idpProgress, setIdpProgress] = useState("");
+  const [idpError, setIdpError] = useState(null);
+  const idpCancelRef = useRef(false);
+
   const ghFindings = useMemo(
     () => (gh ? findings.filter((f) => f.related && f.related[0] === (gh.asset ? gh.asset.id : gh.id)) : []),
     [findings, gh]
@@ -211,6 +219,13 @@ export default function DemoConnectors() {
   );
   const openOnBk = backupFindings.filter((f) => f.status !== "completed").length;
   const backupProtected = backup ? backup.systems.filter((s) => s.state === "healthy").length : 0;
+
+  const identityFindings = useMemo(
+    () => (identity ? findings.filter((f) => f.source === "identity-fixture" && identity.assets.some((a) => a.id === f.asset)) : []),
+    [identity, findings]
+  );
+  const openOnIdp = identityFindings.filter((f) => f.status !== "completed").length;
+  const identityCompliant = identity ? identity.identities.filter((s) => s.state === "healthy").length : 0;
 
   useEffect(() => {
     const root = rootRef.current;
@@ -434,11 +449,40 @@ export default function DemoConnectors() {
     setBkError("This register was imported on the Backup checks page — open it there to reconsider the same file.");
   };
 
+  /* ---------- Identity flows (connector-page mirror) ---------- */
+
+  const idpRunDemo = async () => {
+    idpCancelRef.current = false;
+    setIdpError(null);
+    setIdpPhase("importing");
+    setIdpProgress("Reading bundled identity directory…");
+    await delay(480);
+    if (idpCancelRef.current) return;
+    setIdpProgress("Checking roles, MFA and admin history…");
+    await delay(950);
+    if (idpCancelRef.current) return;
+    setIdpProgress("Assembling findings…");
+    await delay(460);
+    if (idpCancelRef.current) return;
+    putIdentityScan(buildIdentityRecord(buildDemoIdentityResult(), "demo"));
+    setIdpPhase("idle");
+  };
+
+  const idpRescan = () => {
+    if (!identity) return;
+    if (identity.mode === "demo") {
+      idpRunDemo();
+      return;
+    }
+    setIdpError("This directory was imported on the Identity checks page — open it there to reconsider the same file.");
+  };
+
   const githubMeta = CONNECTORS.find((c) => c.id === "github");
   const ghState = connStatusFor({ record: gh, busy: phase !== "idle", openCount: openOnGh });
   const cloudConnState = connStatusFor({ record: cloud, busy: cloudPhase !== "idle", openCount: openOnCloud });
   const webConnState = connStatusFor({ record: web, busy: webPhase !== "idle", openCount: openOnWeb });
   const bkConnState = connStatusFor({ record: backup, busy: bkPhase !== "idle", openCount: openOnBk });
+  const idpConnState = connStatusFor({ record: identity, busy: idpPhase !== "idle", openCount: openOnIdp });
 
   return (
     <div ref={rootRef}>
@@ -992,6 +1036,136 @@ export default function DemoConnectors() {
           <SyncBlock source="backup" record={backup} id="backupSync" lastId="backupLastSync" />
         </article>
 
+        {/* ---------- Identity provider (simulated connector) ---------- */}
+        <article className="conn-card" data-conn id="idpCard">
+          <div className="conn-head">
+            <span className="conn-icon" aria-hidden="true">{CONN_ICONS.identity || ""}</span>
+            <div>
+              <span className="conn-name">Identity provider</span>
+              <span className="badge badge-ghost" style={{ fontSize: "0.66rem", marginTop: "0.25rem" }}>Identity</span>
+            </div>
+          </div>
+          <p className="conn-desc">Role scope, MFA enrolment, and admin history across the exported directory you provide.</p>
+
+          {idpPhase !== "idle" ? (
+            /* ---------- importing / progress ---------- */
+            <div className="scan-progress" id="idpProgress" role="status" aria-live="polite">
+              <span className="scan-spinner" aria-hidden="true"></span>
+              <span className="scan-label">{idpProgress}</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { idpCancelRef.current = true; setIdpPhase("idle"); setIdpProgress(""); }}>
+                Cancel
+              </button>
+              <p className="conn-scan-note">
+                No identity provider is contacted — the directory is read entirely in this browser.
+              </p>
+            </div>
+          ) : identity ? (
+            /* ---------- connected / success ---------- */
+            <div className="conn-connected" id="idpConnected" data-state={identity.state}>
+              <div className="conn-status-line">
+                <span className="status-dot" style={{ background: CONN_STATE_META[idpConnState].dot }}></span>
+                <span>{identity.mode === "demo" ? "Bundled sample directory · nothing was uploaded" : `Imported from "${identity.name}"`}</span>
+                <StateBadges meta={CONN_STATE_META[idpConnState]} state={identity.state} />
+              </div>
+
+              <div className="conn-safe" id="idpSafe" role="note">
+                <span className="conn-safe-ic" aria-hidden="true">✓</span>
+                <span>
+                  Read-only directory review — Kernveil only reads the export you provide and never changes an account,
+                  MFA setup, or privilege.
+                </span>
+              </div>
+
+              {identity.state === "healthy" && (
+                <div className="conn-healthy" id="idpHealthy">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="M8.5 12.5l2.3 2.3 4.7-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <div>
+                    <b>Every identity meets the standards.</b>
+                    <span>All {identity.records} identities have appropriate access and MFA where it matters.</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="conn-metrics">
+                <span><b>{identity.records}</b>identities</span>
+                <span><b>{openOnIdp}</b>active findings</span>
+                <span><b>{identityCompliant}</b>meet standards</span>
+              </div>
+
+              <p className="conn-note" style={{ marginTop: "0.6rem" }}>
+                <span className="badge badge-ghost" style={{ fontSize: "0.66rem", marginRight: "0.5rem" }}>
+                  {dataLabel("identity", identity)}
+                </span>
+                {identity.mode === "demo"
+                  ? "Bundled sample — Kernveil generated this directory from a built-in dataset (no identity provider)."
+                  : "File parsed in this browser — no identity provider is connected or billed."}
+                {identity.warnings.map((w, i) => (
+                  <span key={i} style={{ display: "block", color: w.includes("clean") ? "var(--teal)" : "var(--amber)", marginTop: "0.35rem" }}>{w}</span>
+                ))}
+              </p>
+
+              {idpError && (
+                <div className="conn-error" id="idpError" role="alert">
+                  <b>Scan failed</b>
+                  <span>{idpError}</span>
+                  <span className="conn-error-actions">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIdpError(null)}>Dismiss</button>
+                  </span>
+                </div>
+              )}
+
+              <div className="conn-actions" style={{ marginTop: "0.9rem" }}>
+                <Link className="btn btn-secondary btn-sm" to="/demo-identity">
+                  View identity checks
+                  <svg className="ic ic-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: 14, height: 14 }}>
+                    <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+                <span style={{ display: "inline-flex", gap: "0.5rem" }}>
+                  <button type="button" className="btn btn-ghost btn-sm" id="idpRescan" onClick={idpRescan} disabled={idpPhase !== "idle"}>Re-analyse</button>
+                  <button type="button" className="btn btn-ghost btn-sm conn-disconnect" id="idpRemove" onClick={() => removeIdentityScan(identity.id)}>Remove</button>
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* ---------- empty / not connected ---------- */
+            <div id="idpEmpty">
+              <div className="conn-status-line">
+                <span className="status-dot" style={{ background: CONN_STATE_META.disconnected.dot }}></span>
+                <span>Not connected — no identity directory loaded.</span>
+                <span className="badge badge-slate" style={{ marginLeft: "auto" }}>{CONN_STATE_META.disconnected.label}</span>
+              </div>
+              <div className="conn-actions" style={{ marginTop: "0.9rem", justifyContent: "flex-start" }}>
+                <Link className="btn btn-secondary btn-sm" to="/demo-identity">
+                  Set up identity checks
+                  <svg className="ic ic-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: 14, height: 14 }}>
+                    <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+                <button type="button" className="btn btn-ghost btn-sm" id="idpDemo" onClick={idpRunDemo}>
+                  No directory handy? Load the bundled sample
+                </button>
+              </div>
+
+              {idpError && (
+                <div className="conn-error" id="idpError" role="alert">
+                  <b>Could not load a directory</b>
+                  <span>{idpError}</span>
+                  <span className="conn-error-actions">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIdpError(null)}>Dismiss</button>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <ScopesBlock source="identity" id="identityScopes" />
+          <SyncBlock source="identity" record={identity} id="identitySync" lastId="identityLastSync" />
+        </article>
+
         {/* ---------- Planned / coming soon ---------- */}
         {CONNECTORS.filter((c) => c.state !== "available").map((c) => {
           const meta = CONN_STATE_META[c.state];
@@ -1031,7 +1205,7 @@ export default function DemoConnectors() {
 
       <p className="result-count" style={{ marginTop: "1.6rem", textAlign: "center" }} id="connectorsNote">
         {gh
-          ? `GitHub connector is real — ${gh.name} was ${gh.mode === "demo" ? "simulated (no repository was actually scanned)" : "scanned over the GitHub raw API"}. All other connector data on this page is fictional sample data — no cloud account, website, or backup tool is actually connected.`
+          ? `GitHub connector is real — ${gh.name} was ${gh.mode === "demo" ? "simulated (no repository was actually scanned)" : "scanned over the GitHub raw API"}. All other connector data on this page is fictional sample data — no cloud account, website, backup tool, or identity provider is actually connected.`
           : "Only the GitHub connector is functional in this preview. All other connector data is simulated; nothing else is actually connected."}
       </p>
     </div>

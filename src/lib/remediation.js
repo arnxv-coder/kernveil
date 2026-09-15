@@ -196,12 +196,51 @@ function backupChange(f) {
   };
 }
 
+function identityChange(f) {
+  const ev = Object.fromEntries((f.evidence || []).map((e) => [e.key, e.value]));
+  const acct = f.identity || f.username || f.asset || "the account";
+  const rule = f.rule || "no-data";
+  const plans = {
+    "inactive-user": {
+      title: `Remove the dormant account ${acct}`,
+      after: ["Confirm with the last-known owner that the account is unused", "Disable the account in the identity provider", "Re-run identity analysis and confirm the record clears"],
+    },
+    "excessive-permissions": {
+      title: `Recertify the privileges on ${acct}`,
+      after: ["List the grants attached to the account", "Swap broad grants for least-privilege roles", "Re-run identity analysis and confirm the record clears"],
+    },
+    "no-mfa": {
+      title: `Enroll MFA on ${acct}`,
+      after: ["Require multi-factor authentication on the account", "Enroll the authenticator and verify a sign-in demands the second factor", "Re-run identity analysis and confirm the record clears"],
+    },
+    "suspicious-admin": {
+      title: `Review the administrator access on ${acct}`,
+      after: ["Check who requested the recent administrator grant", "Revoke the role if it was not intended", "Alert on admin-membership changes, then re-run identity analysis"],
+    },
+    "no-data": {
+      title: `Cover ${acct} with an identity standard`,
+      after: ["Define the account standard (MFA, least privilege, retention)", "Scan the directory against it", "Triage accounts that fall short"],
+    },
+  };
+  const t = plans[rule] || plans["no-data"];
+  return {
+    kind: "config-change",
+    glow: "Identity fix draft",
+    title: t.title,
+    resource: acct,
+    before: evEntries(f.evidence),
+    after: t.after,
+    target: acct,
+  };
+}
+
 export function remediationOf(f) {
   if (!f) return null;
   if (f.source === "github-connector") return githubDraft(f);
   if (f.source === "cloud-fixture") return cloudChange(f);
   if (f.source === "website-fixture") return websiteChange(f);
   if (f.source === "backup-fixture") return backupChange(f);
+  if (f.source === "identity-fixture") return identityChange(f);
   return genericDraft(f);
 }
 

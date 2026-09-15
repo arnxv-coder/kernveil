@@ -463,8 +463,8 @@ export const CONNECTORS = [
   {
     id: "identity",
     name: "Identity provider",
-    desc: "Credential age, unusual sign-in patterns, and policy hygiene across your identity layer.",
-    state: "planned",
+    desc: "Credential age, unusual sign-in patterns, and role hygiene across the exported identity directory you review. No live provider is ever contacted.",
+    state: "available",
     type: "Identity",
   },
   {

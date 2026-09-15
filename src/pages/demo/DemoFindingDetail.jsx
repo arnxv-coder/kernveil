@@ -44,7 +44,11 @@ export default function DemoFindingDetail() {
           ? f.demo
             ? `Bundled backup sample — ${f.system ? `"${f.system}" ` : ""}is a simulated backup record. No backup system was actually contacted.`
             : `Imported backup data — this finding came from the register you uploaded. No live backup tool is connected; the evidence below is from the file.`
-          : "Demo finding — fictional sample data for illustration.";
+          : f && f.source === "identity-fixture"
+            ? f.demo
+              ? `Bundled identity sample — ${f.identity ? `"${f.identity}" ` : ""}is a simulated directory record. No identity provider was actually contacted.`
+              : `Imported identity data — this finding came from the directory export you uploaded. No live identity provider is connected; the evidence below is from the file.`
+            : "Demo finding — fictional sample data for illustration.";
 
   const changeStatus = (status, note) => {
     setFindingStatus(id, status, note);

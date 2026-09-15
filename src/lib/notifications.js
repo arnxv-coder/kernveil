@@ -69,6 +69,7 @@ export function sourceLabel(f) {
   if (f.source === "cloud-fixture") return "Cloud";
   if (f.source === "website-fixture") return "Website";
   if (f.source === "backup-fixture") return "Backup";
+  if (f.source === "identity-fixture") return "Identity";
   return "Sample";
 }
 

@@ -7,7 +7,7 @@ import { BrandMark } from "../../components/Icons.jsx";
 import { useWorkspace, initialsOf } from "../../context/WorkspaceContext.jsx";
 
 export default function DemoLayout({ page, children }) {
-  const { workspace, overview, resetWorkspace, assets, cloudOpen, webOpen, backupOpen, notifOpen } = useWorkspace();
+  const { workspace, overview, resetWorkspace, assets, cloudOpen, webOpen, backupOpen, identityOpen, notifOpen } = useWorkspace();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -93,6 +93,18 @@ export default function DemoLayout({ page, children }) {
           <ellipse cx="12" cy="5.5" rx="7" ry="2.7" stroke="currentColor" strokeWidth="1.6" />
           <path d="M5 5.5v13c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7v-13" stroke="currentColor" strokeWidth="1.6" />
           <path d="M5 12c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7" stroke="currentColor" strokeWidth="1.6" />
+        </svg>
+      ),
+    },
+    {
+      page: "identity",
+      to: "/demo-identity",
+      label: "Identity checks",
+      count: identityOpen || null,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="8" rx="3.4" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M5.5 19c.7-3.2 3.2-5.5 6.5-5.5s5.8 2.3 6.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
       ),
     },
