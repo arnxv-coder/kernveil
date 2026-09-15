@@ -122,6 +122,18 @@ export default function DemoLayout({ page, children }) {
       ),
     },
     {
+      page: "reports",
+      to: "/demo-reports",
+      label: "Reports",
+      count: null,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 4h16v16H4V4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
       page: "connectors",
       to: "/demo-connectors",
       label: "Connectors",
