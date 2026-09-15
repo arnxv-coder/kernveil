@@ -7,7 +7,7 @@ import { gsap, reducedMotion, SEV_RANK } from "../../lib/anim.jsx";
 import { severityPill, statusBadge } from "../../components/demo/badges.jsx";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
-const CATEGORIES = ["Exposure", "Configuration", "Dependencies", "Identity", "Repositories", "Backups"];
+const CATEGORIES = ["Exposure", "Configuration", "Dependencies", "Identity", "Repositories", "Backups", "Email security"];
 
 function sorted(list) {
   return list.slice().sort((a, b) => {

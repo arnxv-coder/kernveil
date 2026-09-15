@@ -77,6 +77,7 @@ export function dataLabel(source, record) {
   if (record.mode === "demo") return source === "cloud" ? "Demo fixture" : "Demo scan";
   if (record.mode === "uploaded") return "Imported fixture";
   if (record.mode === "live") return "Live scan";
+  if (record.mode === "scan") return "Simulated scan";
   if (record.mode === "sample") return "Sample data";
   return "Scan data";
 }
@@ -113,6 +114,11 @@ export function syncNoteOf(record) {
   if (record.kind === "cloud") {
     return `${record.records} check${record.records === 1 ? "" : "s"} · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"}`;
   }
+  if (record.kind === "website") {
+    return record.findings && record.findings.length
+      ? `${record.records} checks · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"}`
+      : `Clean bill — ${record.records} checks passed`;
+  }
   return "Scan complete";
 }
 
@@ -129,21 +135,10 @@ export function appendSync(syncs, entry) {
   return [...(syncs || []).filter((s) => s.at !== entry.at), entry].slice(-12);
 }
 
-/* The website connector has no live scanning in this demo — its
-   sample history deliberately includes a failed crawl so the
-   "last sync" model is visible without claiming real connections. */
-const SAMPLE_SYNCS = [
-  { at: Date.now() - 62 * MIN, ok: true, note: "Crawl complete — 6 pages, 2 findings", mode: "sample" },
-  { at: Date.now() - 5 * HOUR, ok: true, note: "Crawl complete — 6 pages, 2 findings", mode: "sample" },
-  { at: Date.now() - 26 * HOUR, ok: false, note: "Crawl failed — TLS handshake time out", mode: "sample" },
-  { at: Date.now() - 2 * DAY, ok: true, note: "Crawl complete — 6 pages", mode: "sample" },
-];
-
 export function syncHistoryOf(source, record) {
   if (record && Array.isArray(record.syncs) && record.syncs.length) {
     return [...record.syncs].sort((a, b) => (b.at || 0) - (a.at || 0));
   }
   if (record) return [{ at: record.lastScanAt || record.scannedAt, ok: true, note: syncNoteOf(record), mode: record.mode }];
-  if (source === "website") return SAMPLE_SYNCS;
   return [];
 }

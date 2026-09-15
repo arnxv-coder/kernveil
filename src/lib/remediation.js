@@ -107,6 +107,50 @@ function cloudChange(f) {
   };
 }
 
+function websiteChange(f) {
+  const ev = Object.fromEntries((f.evidence || []).map((e) => [e.key, e.value]));
+  const rule = f.rule || "website";
+  const targets = {
+    "https-enforced": {
+      title: `Enforce HTTPS for ${f.host || f.asset}`,
+      after: ["Redirect all HTTP traffic to HTTPS (301)", "Enable HSTS on the host"],
+    },
+    "tls-certificate": {
+      title: `Renew the certificate for ${f.host || f.asset}`,
+      after: ["Confirm the auto-renewal job is enabled", "Renew and verify the new validity window"],
+    },
+    "security-headers": {
+      title: `Add security headers for ${f.host || f.asset}`,
+      after: ["Ship a starter CSP header", "Send X-Frame-Options: DENY", "Re-check the headers"],
+    },
+    spf: {
+      title: "Tighten the SPF record",
+      after: ["Trim the include list to real senders", "Change the all mechanism to -all"],
+    },
+    dkim: {
+      title: "Fix DKIM signing",
+      after: ["Publish a working DKIM key at the advertised selector", "Ensure alignment with the sending domain"],
+    },
+    dmarc: {
+      title: "Enforce the DMARC policy",
+      after: ["Move the policy from p=none to p=quarantine", "Escalate to p=reject once reporting is clean"],
+    },
+  };
+  const t = targets[rule] || {
+    title: `Apply the recommended change for ${f.host || f.asset}`,
+    after: ["Apply the change described in the recommended step", "Re-check to confirm it clears"],
+  };
+  return {
+    kind: "config-change",
+    glow: "Website change draft",
+    title: t.title,
+    resource: f.host || ev.Host || f.asset || "the host",
+    before: evEntries(f.evidence),
+    after: t.after,
+    target: f.host || f.asset,
+  };
+}
+
 function genericDraft(f) {
   return {
     kind: "generic",
@@ -122,6 +166,7 @@ export function remediationOf(f) {
   if (!f) return null;
   if (f.source === "github-connector") return githubDraft(f);
   if (f.source === "cloud-fixture") return cloudChange(f);
+  if (f.source === "website-fixture") return websiteChange(f);
   return genericDraft(f);
 }
 

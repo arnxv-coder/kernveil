@@ -25,12 +25,14 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 function sourceOf(f) {
   if (f.source === "github-connector") return "github";
   if (f.source === "cloud-fixture") return "cloud";
+  if (f.source === "website-fixture") return "website";
   return "sample";
 }
 
 const SRC_META = {
   github: { label: "GitHub", dot: "var(--slate)" },
   cloud: { label: "Cloud", dot: "var(--teal)" },
+  website: { label: "Website", dot: "var(--cyan)" },
   sample: { label: "Sample", dot: "var(--amber)" },
 };
 
@@ -201,7 +203,7 @@ export default function DemoOverview() {
   const rootRef = useRef(null);
   const queueRef = useRef(null);
   useDashboardFx(rootRef);
-  const { findings: allFindings, assets, overview: o, activity, connectors, cloudScans } = useWorkspace();
+  const { findings: allFindings, assets, overview: o, activity, connectors, cloudScans, webScans } = useWorkspace();
 
   const [term, setTerm] = useState("");
   const [sev, setSev] = useState("all");
@@ -231,7 +233,7 @@ export default function DemoOverview() {
   const rowsKey = rows.map((f) => f.id).join(",");
 
   const srcCounts = useMemo(() => {
-    const c = { github: 0, cloud: 0, sample: 0 };
+    const c = { github: 0, cloud: 0, website: 0, sample: 0 };
     for (const f of allFindings) c[sourceOf(f)] += 1;
     return c;
   }, [allFindings]);
@@ -263,6 +265,7 @@ export default function DemoOverview() {
   const healthRows = useMemo(() => {
     const gh = connectors.find((c) => c.kind === "github");
     const cloud = cloudScans[0];
+    const web = webScans[0];
     const websiteSample = { kind: "website", mode: "sample", lastScanAt: Date.now() - 62 * 60e3 };
     return [
       {
@@ -282,15 +285,15 @@ export default function DemoOverview() {
       {
         id: "website",
         name: "Website",
-        status: connStatusFor({ record: websiteSample, openCount: 2 }),
-        last: lastSyncText(websiteSample),
-        open: 2,
+        status: connStatusFor({ record: web || websiteSample, openCount: web ? openForSource("website") : 2 }),
+        last: lastSyncText(web || websiteSample),
+        open: web ? openForSource("website") : 2,
       },
       { id: "identity", name: "Identity provider", status: "planned", last: "—", open: 0 },
       { id: "backup", name: "Backup system", status: "planned", last: "—", open: 0 },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allFindings, connectors, cloudScans]);
+  }, [allFindings, connectors, cloudScans, webScans]);
 
   /* Remediation progress — count per workflow status, plus actions that
      have been sitting unresolved longer than a week. */
@@ -340,13 +343,13 @@ export default function DemoOverview() {
 
   const anyFindings = allFindings.length > 0;
 
-  const sources = ["all", "github", "cloud", "sample"];
+  const sources = ["all", "github", "cloud", "website", "sample"];
 
   return (
     <div ref={rootRef}>
       <header className="page-head">
         <h1 className="page-title">Overview</h1>
-        <p className="page-sub">Every finding across GitHub and cloud, prioritized by what matters most — at a glance.</p>
+        <p className="page-sub">Every finding across GitHub, cloud, and your websites, prioritized by what matters most — at a glance.</p>
       </header>
 
       {!anyFindings ? (

@@ -2486,3 +2486,43 @@ body.demo-body {
 .health-open {
   color: var(--text-2);
 }
+
+/* ---------- website check results ---------- */
+
+.scan-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  list-style: none;
+}
+
+.scan-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+.scan-check-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cd, var(--slate));
+  flex: none;
+}
+
+.scan-check-label {
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.scan-check .badge {
+  margin-left: auto;
+  flex: none;
+}

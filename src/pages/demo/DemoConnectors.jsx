@@ -15,6 +15,7 @@ import { CONNECTORS } from "../../lib/data.js";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 import { scanRepository, buildDemoScan } from "../../lib/githubScan.js";
 import { analyzeDemoFixture } from "../../lib/cloudFixture.js";
+import { analyzeDemoSite, analyzeHostScan, normalizeHost } from "../../lib/websiteScan.js";
 import {
   CONN_STATE_META,
   SOURCE_SCOPES,
@@ -63,6 +64,27 @@ function cloudRecordFrom(result, mode) {
     addedAt: now,
     lastScanAt: now,
     records: result.records,
+    findings: result.findings,
+    assets: result.assets,
+    clean: result.findings.length === 0,
+    state: result.findings.length ? "findings" : "healthy",
+    warnings: result.warnings || [],
+    skipped: result.skipped || 0,
+  };
+}
+
+function websiteRecordFrom(result, mode) {
+  const now = Date.now();
+  return {
+    id: `web:${result.host}`,
+    kind: "website",
+    mode,
+    name: result.host,
+    host: result.host,
+    addedAt: now,
+    lastScanAt: now,
+    records: result.records,
+    checks: result.checks,
     findings: result.findings,
     assets: result.assets,
     clean: result.findings.length === 0,
@@ -130,10 +152,11 @@ function SyncBlock({ source, record, id, lastId }) {
 export default function DemoConnectors() {
   const rootRef = useRef(null);
   const REDUCED = reducedMotion();
-  const { connectors, findings, putConnector, removeConnector, noteConnectorFailure, cloudScans, putCloudScan, removeCloudScan } = useWorkspace();
+  const { connectors, findings, putConnector, removeConnector, noteConnectorFailure, cloudScans, putCloudScan, removeCloudScan, webScans, putWebScan, removeWebScan } = useWorkspace();
 
   const gh = connectors.find((c) => c.kind === "github");
   const cloud = cloudScans[0];
+  const web = webScans[0];
 
   /* --- github local state --- */
   const [repoInput, setRepoInput] = useState("");
@@ -149,6 +172,13 @@ export default function DemoConnectors() {
   const [cloudError, setCloudError] = useState(null);
   const cloudCancelRef = useRef(false);
 
+  /* --- website local state (connector-page mirror of /demo-website) --- */
+  const [webPhase, setWebPhase] = useState("idle"); // idle | scanning
+  const [webProgress, setWebProgress] = useState("");
+  const [webError, setWebError] = useState(null);
+  const [webUrl, setWebUrl] = useState("");
+  const webCancelRef = useRef(false);
+
   const ghFindings = useMemo(
     () => (gh ? findings.filter((f) => f.related && f.related[0] === (gh.asset ? gh.asset.id : gh.id)) : []),
     [findings, gh]
@@ -160,6 +190,12 @@ export default function DemoConnectors() {
     [cloud, findings]
   );
   const openOnCloud = cloudFindings.filter((f) => f.status !== "completed").length;
+
+  const webFindings = useMemo(
+    () => (web ? findings.filter((f) => f.source === "website-fixture" && web.assets.some((a) => a.id === f.asset)) : []),
+    [web, findings]
+  );
+  const openOnWeb = webFindings.filter((f) => f.status !== "completed").length;
 
   useEffect(() => {
     const root = rootRef.current;
@@ -180,7 +216,7 @@ export default function DemoConnectors() {
     return () => ctx.revert();
   }, [rootRef, REDUCED]);
 
-  useEffect(() => () => { cancelRef.current = true; cloudCancelRef.current = true; }, []);
+  useEffect(() => () => { cancelRef.current = true; cloudCancelRef.current = true; webCancelRef.current = true; }, []);
 
   /* ---------- GitHub flows ---------- */
 
@@ -294,12 +330,71 @@ export default function DemoConnectors() {
     setCloudError("This fixture was imported on the Cloud checks page — open it there to re-scan the same file.");
   };
 
+  /* ---------- Website flows (connector-page mirror) ---------- */
+
+  const websiteRunScan = async (result, mode) => {
+    webCancelRef.current = false;
+    setWebError(null);
+    setWebPhase("scanning");
+    setWebProgress("Evaluating HTTPS and TLS…");
+    let stopped = false;
+    stopped = webCancelRef.current;
+    await delay(520);
+    if (webCancelRef.current) return;
+    setWebProgress("Reading security headers…");
+    await delay(620);
+    if (webCancelRef.current) return;
+    setWebProgress("Checking DNS records — SPF, DKIM, DMARC…");
+    await delay(760);
+    if (webCancelRef.current) return;
+    setWebProgress("Assembling findings…");
+    await delay(420);
+    if (webCancelRef.current) return;
+    putWebScan(websiteRecordFrom(result, mode));
+    setWebPhase("idle");
+  };
+
+  const webRunDemo = () => websiteRunScan(analyzeDemoSite("demo"), "demo");
+
+  const webConnect = async (e) => {
+    e.preventDefault();
+    const norm = normalizeHost(webUrl);
+    if (!norm.ok) {
+      setWebError(norm.error);
+      return;
+    }
+    if (webCancelRef.current) return;
+    setWebError(null);
+    setWebPhase("scanning");
+    setWebProgress("Evaluating HTTPS and TLS…");
+    await delay(520);
+    if (webCancelRef.current) return;
+    setWebProgress("Reading security headers…");
+    await delay(620);
+    if (webCancelRef.current) return;
+    setWebProgress("Checking DNS records — SPF, DKIM, DMARC…");
+    await delay(760);
+    if (webCancelRef.current) return;
+    setWebProgress("Assembling findings…");
+    await delay(420);
+    if (webCancelRef.current) return;
+    putWebScan(websiteRecordFrom(analyzeHostScan(norm.host), "scan"));
+    setWebPhase("idle");
+  };
+
+  const webRescan = async () => {
+    if (!web) return;
+    if (web.mode === "demo") {
+      webRunDemo();
+      return;
+    }
+    putWebScan(websiteRecordFrom(analyzeHostScan(web.host), "scan"));
+  };
+
   const githubMeta = CONNECTORS.find((c) => c.id === "github");
   const ghState = connStatusFor({ record: gh, busy: phase !== "idle", openCount: openOnGh });
   const cloudConnState = connStatusFor({ record: cloud, busy: cloudPhase !== "idle", openCount: openOnCloud });
-
-  const websiteSampleRec = { kind: "website", mode: "sample", lastScanAt: Date.now() - 62 * 60e3 };
-  const websiteState = connStatusFor({ record: websiteSampleRec, openCount: 2 });
+  const webConnState = connStatusFor({ record: web, busy: webPhase !== "idle", openCount: openOnWeb });
 
   return (
     <div ref={rootRef}>
@@ -578,8 +673,8 @@ export default function DemoConnectors() {
           <SyncBlock source="cloud" record={cloud} id="cloudSync" lastId="cloudLastSync" />
         </article>
 
-        {/* ---------- Website (simulated) ---------- */}
-        <article className="conn-card" data-conn>
+        {/* ---------- Website (simulated connector) ---------- */}
+        <article className="conn-card" data-conn id="webCard">
           <div className="conn-head">
             <span className="conn-icon" aria-hidden="true">{CONN_ICONS.website || ""}</span>
             <div>
@@ -587,36 +682,147 @@ export default function DemoConnectors() {
               <span className="badge badge-ghost" style={{ fontSize: "0.66rem", marginTop: "0.25rem" }}>Website</span>
             </div>
           </div>
-          <p className="conn-desc">Public exposure checks, TLS health, and security headers for the sites you answer for.</p>
+          <p className="conn-desc">Public exposure checks, TLS health, security headers, and mail authentication for the sites you answer for.</p>
 
-          <div className="conn-connected">
-            <div className="conn-status-line">
-              <span className="status-dot" style={{ background: CONN_STATE_META[websiteState].dot }}></span>
-              <span>Simulated connection · sample data</span>
-              <span style={{ marginLeft: "auto", display: "inline-flex", gap: "0.4rem", alignItems: "center" }}>
-                <span className={`badge ${CONN_STATE_META[websiteState].cls}`}>{CONN_STATE_META[websiteState].label}</span>
-                <span className="badge badge-ghost" style={{ fontSize: "0.66rem" }}>Sample data</span>
-              </span>
+          {webPhase !== "idle" ? (
+            /* ---------- scanning / progress ---------- */
+            <div className="scan-progress" id="webProgress" role="status" aria-live="polite">
+              <span className="scan-spinner" aria-hidden="true"></span>
+              <span className="scan-label">{webProgress}</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { webCancelRef.current = true; setWebPhase("idle"); setWebProgress(""); }}>
+                Cancel
+              </button>
+              <p className="conn-scan-note">
+                Simulated evaluation — no live DNS, TLS, or HTTP interrogation happens in this demo.
+              </p>
             </div>
+          ) : web ? (
+            /* ---------- connected / success ---------- */
+            <div className="conn-connected" id="webConnected" data-state={web.state}>
+              <div className="conn-status-line">
+                <span className="status-dot" style={{ background: CONN_STATE_META[webConnState].dot }}></span>
+                <span>{web.mode === "demo" ? "Bundled sample site · nothing was contacted" : `Evaluated "${web.name}" (simulated)`}</span>
+                <StateBadges meta={CONN_STATE_META[webConnState]} state={web.state} />
+              </div>
 
-            <div className="conn-metrics">
-              <span><b>6</b>pages checked</span>
-              <span><b>2</b>open findings</span>
-              <span><b>Sample</b>last sync</span>
-            </div>
+              {web.clean && web.warnings.length === 0 && (
+                <div className="conn-healthy" id="webHealthy">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="M8.5 12.5l2.3 2.3 4.7-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <div>
+                    <b>No HTTPS, TLS, header, or mail-authentication issues found.</b>
+                    <span>All {web.records} checks passed for this host.</span>
+                  </div>
+                </div>
+              )}
 
-            <div className="conn-actions" style={{ marginTop: "0.9rem" }}>
-              <Link className="btn btn-secondary btn-sm" to="/demo-findings">
-                View sample findings
-                <svg className="ic ic-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: 14, height: 14 }}>
-                  <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Link>
+              <div className="conn-metrics">
+                <span><b>{web.records}</b>checks</span>
+                <span><b>{openOnWeb}</b>active findings</span>
+                <span><b>{web.assets.length}</b>asset{web.assets.length === 1 ? "" : "s"} affected</span>
+              </div>
+
+              {!web.clean && (
+                <ul className="scan-results" aria-label="Website check results">
+                  {web.checks.map((c) => (
+                    <li className="scan-check" key={c.rule}>
+                      <span className="scan-check-dot" style={{ "--cd": c.status === "pass" ? "var(--green)" : c.status === "warn" ? "var(--amber)" : "var(--red)" }}></span>
+                      <span className="scan-check-label">{c.label}</span>
+                      <span className={`badge ${c.status === "pass" ? "badge-teal" : c.status === "warn" ? "badge-amber" : "badge-orange"}`} style={{ fontSize: "0.64rem", marginLeft: "auto" }}>
+                        {c.status === "pass" ? "Pass" : c.status === "warn" ? "Warning" : "Fail"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <p className="conn-note" style={{ marginTop: "0.6rem" }}>
+                <span className="badge badge-ghost" style={{ fontSize: "0.66rem", marginRight: "0.5rem" }}>
+                  {dataLabel("website", web)}
+                </span>
+                {web.mode === "demo"
+                  ? "Bundled sample — Kernveil generated these checks from a built-in site profile (no live scan)."
+                  : "Simulated host evaluation in this browser — no domains were actually contacted, so nothing claims to be a live scan."}
+                {web.warnings.map((w, i) => (
+                  <span key={i} style={{ display: "block", color: "var(--amber)", marginTop: "0.35rem" }}>{w}</span>
+                ))}
+              </p>
+
+              {webError && (
+                <div className="conn-error" id="webError" role="alert">
+                  <b>Scan failed</b>
+                  <span>{webError}</span>
+                  <span className="conn-error-actions">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setWebError(null)}>Dismiss</button>
+                  </span>
+                </div>
+              )}
+
+              <div className="conn-actions" style={{ marginTop: "0.9rem" }}>
+                <Link className="btn btn-secondary btn-sm" to="/demo-findings">
+                  View findings
+                  <svg className="ic ic-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: 14, height: 14 }}>
+                    <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+                <span style={{ display: "inline-flex", gap: "0.5rem" }}>
+                  <button type="button" className="btn btn-ghost btn-sm" id="webRescan" onClick={webRescan} disabled={webPhase !== "idle"}>Rescan</button>
+                  <button type="button" className="btn btn-ghost btn-sm conn-disconnect" id="webRemove" onClick={() => removeWebScan(web.id)}>Remove</button>
+                </span>
+              </div>
             </div>
-          </div>
+          ) : (
+            /* ---------- empty / not connected ---------- */
+            <div id="webEmpty">
+              <div className="conn-status-line">
+                <span className="status-dot" style={{ background: CONN_STATE_META.disconnected.dot }}></span>
+                <span>Not connected — no site evaluated on this page.</span>
+                <span className="badge badge-slate" style={{ marginLeft: "auto" }}>{CONN_STATE_META.disconnected.label}</span>
+              </div>
+              <form className="conn-form" id="webForm" onSubmit={webConnect} style={{ marginTop: "0.7rem" }}>
+                <div className="field">
+                  <label htmlFor="webUrl">Website host</label>
+                  <input
+                    id="webUrl"
+                    type="text"
+                    placeholder="e.g. api.acme.com"
+                    autoComplete="off"
+                    spellCheck="false"
+                    value={webUrl}
+                    onChange={(e) => { setWebUrl(e.target.value); if (webError) setWebError(null); }}
+                  />
+                  <span className="field-hint">Simulated evaluation — no real site is contacted or scanned.</span>
+                </div>
+                <div className="conn-actions" style={{ flexWrap: "wrap" }}>
+                  <button type="submit" className="btn btn-primary btn-sm" id="webConnect">
+                    Connect &amp; evaluate
+                    <svg className="ic ic-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: 14, height: 14 }}>
+                      <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" id="webDemo" onClick={webRunDemo}>
+                    No site handy? Load the bundled sample
+                  </button>
+                </div>
+              </form>
+
+              {webError && (
+                <div className="conn-error" id="webError" role="alert">
+                  <b>Could not evaluate that host</b>
+                  <span dangerouslySetInnerHTML={{ __html: webError }} />
+                  <span className="conn-error-actions">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setWebError(null)}>Dismiss</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={webRunDemo}>Load the bundled sample instead</button>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           <ScopesBlock source="website" id="websiteScopes" />
-          <SyncBlock source="website" record={websiteSampleRec} id="websiteSync" />
+          <SyncBlock source="website" record={web} id="websiteSync" lastId="websiteLastSync" />
         </article>
 
         {/* ---------- Planned / coming soon ---------- */}
