@@ -70,6 +70,7 @@ export function sourceLabel(f) {
   if (f.source === "website-fixture") return "Website";
   if (f.source === "backup-fixture") return "Backup";
   if (f.source === "identity-fixture") return "Identity";
+  if (f.source === "activity-fixture") return "Activity";
   return "Sample";
 }
 

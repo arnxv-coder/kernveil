@@ -139,6 +139,7 @@ export default function DemoAssets() {
             <option value="Code">Code</option>
             <option value="Website">Website</option>
             <option value="Identity audit">Identity audit</option>
+            <option value="Activity monitoring">Activity monitoring</option>
             <option value="Backups">Backups</option>
             <option value="GitHub">GitHub</option>
             <option value="Cloud audit">Cloud audit</option>

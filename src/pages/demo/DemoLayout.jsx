@@ -7,7 +7,7 @@ import { BrandMark } from "../../components/Icons.jsx";
 import { useWorkspace, initialsOf } from "../../context/WorkspaceContext.jsx";
 
 export default function DemoLayout({ page, children }) {
-  const { workspace, overview, resetWorkspace, assets, cloudOpen, webOpen, backupOpen, identityOpen, notifOpen } = useWorkspace();
+  const { workspace, overview, resetWorkspace, assets, cloudOpen, webOpen, backupOpen, identityOpen, activityOpen, notifOpen } = useWorkspace();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -105,6 +105,19 @@ export default function DemoLayout({ page, children }) {
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="8" rx="3.4" stroke="currentColor" strokeWidth="1.6" />
           <path d="M5.5 19c.7-3.2 3.2-5.5 6.5-5.5s5.8 2.3 6.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      page: "activity",
+      to: "/demo-activity",
+      label: "Activity alerts",
+      count: activityOpen || null,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 5h16M4 12h16M4 19h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M9 5c1.6 3.4-2.2 6.6.4 9.4.8.9 1.4 1.7 1.4 2.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M15 5c-1.6 3.4 2.2 6.6-.4 9.4-.8.9-1.4 1.7-1.4 2.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
       ),
     },

@@ -30,6 +30,8 @@ export const STATUS_META = {
   "in-progress": { label: "In progress", cls: "st-work" },
   completed: { label: "Completed", cls: "st-resolved" },
   failed: { label: "Failed", cls: "st-failed" },
+  investigating: { label: "Investigating", cls: "st-investigating" },
+  acknowledged: { label: "Acknowledged", cls: "st-acknowledged" },
   resolved: { label: "Completed", cls: "st-resolved" },
 };
 
@@ -117,6 +119,13 @@ export const CONN_ICONS = {
   cloud: TYPE_ICONS.cloud,
   website: TYPE_ICONS.website,
   identity: TYPE_ICONS.identity,
+  activity: (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 5h16M4 12h16M4 19h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M9 5c1.6 3.4-2.2 6.6.4 9.4.8.9 1.4 1.7 1.4 2.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M15 5c-1.6 3.4 2.2 6.6-.4 9.4-.8.9-1.4 1.7-1.4 2.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
   backup: (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <ellipse cx="12" cy="6" rx="7" ry="3" stroke="currentColor" strokeWidth="1.6" />

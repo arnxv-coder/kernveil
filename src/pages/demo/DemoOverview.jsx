@@ -28,6 +28,7 @@ function sourceOf(f) {
   if (f.source === "website-fixture") return "website";
   if (f.source === "backup-fixture") return "backup";
   if (f.source === "identity-fixture") return "identity";
+  if (f.source === "activity-fixture") return "activity";
   return "sample";
 }
 
@@ -37,6 +38,7 @@ const SRC_META = {
   website: { label: "Website", dot: "var(--cyan)" },
   backup: { label: "Backup", dot: "var(--green)" },
   identity: { label: "Identity", dot: "var(--orange)" },
+  activity: { label: "Activity", dot: "var(--red)" },
   sample: { label: "Sample", dot: "var(--amber)" },
 };
 
@@ -207,7 +209,7 @@ export default function DemoOverview() {
   const rootRef = useRef(null);
   const queueRef = useRef(null);
   useDashboardFx(rootRef);
-  const { findings: allFindings, assets, overview: o, activity, connectors, cloudScans, webScans, backupScans, identityScans } = useWorkspace();
+  const { findings: allFindings, assets, overview: o, activity, connectors, cloudScans, webScans, backupScans, identityScans, activityScans } = useWorkspace();
 
   const [term, setTerm] = useState("");
   const [sev, setSev] = useState("all");
@@ -237,7 +239,7 @@ export default function DemoOverview() {
   const rowsKey = rows.map((f) => f.id).join(",");
 
   const srcCounts = useMemo(() => {
-    const c = { github: 0, cloud: 0, website: 0, backup: 0, identity: 0, sample: 0 };
+    const c = { github: 0, cloud: 0, website: 0, backup: 0, identity: 0, activity: 0, sample: 0 };
     for (const f of allFindings) c[sourceOf(f)] += 1;
     return c;
   }, [allFindings]);
@@ -272,6 +274,7 @@ export default function DemoOverview() {
     const web = webScans[0];
     const backup = backupScans[0];
     const identity = identityScans[0];
+    const activity = activityScans[0];
     const websiteSample = { kind: "website", mode: "sample", lastScanAt: Date.now() - 62 * 60e3 };
     return [
       {
@@ -309,9 +312,16 @@ export default function DemoOverview() {
         last: lastSyncText(identity),
         open: openForSource("identity"),
       },
+      {
+        id: "activity",
+        name: "Activity monitoring",
+        status: connStatusFor({ record: activity, openCount: openForSource("activity") }),
+        last: lastSyncText(activity),
+        open: openForSource("activity"),
+      },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allFindings, connectors, cloudScans, webScans, backupScans, identityScans]);
+  }, [allFindings, connectors, cloudScans, webScans, backupScans, identityScans, activityScans]);
 
   /* Remediation progress — count per workflow status, plus actions that
      have been sitting unresolved longer than a week. */
@@ -361,7 +371,7 @@ export default function DemoOverview() {
 
   const anyFindings = allFindings.length > 0;
 
-  const sources = ["all", "github", "cloud", "website", "backup", "identity", "sample"];
+  const sources = ["all", "github", "cloud", "website", "backup", "identity", "activity", "sample"];
 
   return (
     <div ref={rootRef}>

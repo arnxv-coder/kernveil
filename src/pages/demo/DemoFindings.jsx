@@ -7,7 +7,15 @@ import { gsap, reducedMotion, SEV_RANK } from "../../lib/anim.jsx";
 import { severityPill, statusBadge } from "../../components/demo/badges.jsx";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
-const CATEGORIES = ["Exposure", "Configuration", "Dependencies", "Identity", "Repositories", "Backups", "Email security"];
+const CATEGORIES = ["Exposure", "Configuration", "Dependencies", "Identity", "Repositories", "Backups", "Email security", "Suspicious activity"];
+
+const EVENT_TYPES = [
+  { key: "unusual-login", label: "Unusual login" },
+  { key: "failed-access", label: "Repeated failures" },
+  { key: "privilege-change", label: "Privilege change" },
+  { key: "sensitive-access", label: "Sensitive access" },
+  { key: "admin-action", label: "Admin action" },
+];
 
 function sorted(list) {
   return list.slice().sort((a, b) => {
@@ -26,6 +34,8 @@ const STATUS_FILTERS = [
   { key: "rejected", label: "Rejected" },
   { key: "in-progress", label: "In progress" },
   { key: "failed", label: "Failed" },
+  { key: "investigating", label: "Investigating" },
+  { key: "acknowledged", label: "Acknowledged" },
   { key: "completed", label: "Completed" },
 ];
 
@@ -40,6 +50,11 @@ export default function DemoFindings() {
   const [sev, setSev] = useState("all");
   const [status, setStatus] = useState("all");
   const [cat, setCat] = useState("all");
+  const [etype, setEtype] = useState("all");
+
+  useEffect(() => {
+    if (cat !== "Suspicious activity") setEtype("all");
+  }, [cat]);
 
   const rows = useMemo(() => {
     const q = term.trim().toLowerCase();
@@ -47,10 +62,11 @@ export default function DemoFindings() {
       if (sev !== "all" && f.severity !== sev) return false;
       if (status !== "all" && f.status !== status) return false;
       if (cat !== "all" && f.category !== cat) return false;
-      if (q && !(f.title + f.asset + f.category + f.summary).toLowerCase().includes(q)) return false;
+      if (etype !== "all" && f.rule !== etype) return false;
+      if (q && !(f.title + f.asset + f.category + (f.summary || "") + (f.identity || "") + (f.username || "") + (f.resource || "") + (f.eventType || "")).toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [term, sev, status, cat, allFindings]);
+  }, [term, sev, status, cat, etype, allFindings]);
 
   const rowsKey = rows.map((f) => f.id).join(",");
 
@@ -149,6 +165,15 @@ export default function DemoFindings() {
             {CATEGORIES.map((c) => (
               <button key={c} type="button" className={`chip${cat === c ? " is-active" : ""}`} onClick={() => setCat(c)}>
                 {c}
+              </button>
+            ))}
+          </div>
+
+          <div className="chip-set" role="group" aria-label="Filter by event type" style={{ display: cat === "Suspicious activity" ? undefined : "none" }}>
+            <button type="button" className={`chip${etype === "all" ? " is-active" : ""}`} onClick={() => setEtype("all")}>All event types</button>
+            {EVENT_TYPES.map((o) => (
+              <button key={o.key} type="button" className={`chip${etype === o.key ? " is-active" : ""}`} aria-pressed={etype === o.key} onClick={() => setEtype(o.key)}>
+                {o.label}
               </button>
             ))}
           </div>

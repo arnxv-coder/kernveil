@@ -16,6 +16,8 @@ const STATUS_NOTE = {
   "in-progress": "Remediation is underway. Mark it completed once the check clears — or failed if it doesn't.",
   completed: "This finding is closed. Kernveil keeps monitoring and will re-propose it if the issue returns.",
   failed: "The last attempt did not clear the check. Retry the remediation, or re-propose a different approach.",
+  investigating: "An investigation is open on this alert. The audit trail records the timeline; mark it resolved once the activity has been reviewed and accounted for.",
+  acknowledged: "This alert has been acknowledged and is being tracked. Reopen it to investigate, or resolve it once the risk is closed.",
 };
 
 export default function DemoFindingDetail() {
@@ -48,6 +50,10 @@ export default function DemoFindingDetail() {
             ? f.demo
               ? `Bundled identity sample — ${f.identity ? `"${f.identity}" ` : ""}is a simulated directory record. No identity provider was actually contacted.`
               : `Imported identity data — this finding came from the directory export you uploaded. No live identity provider is connected; the evidence below is from the file.`
+            : f && f.source === "activity-fixture"
+              ? f.demo
+                ? `Bundled activity sample — ${f.actor ? `"${f.actor}" ` : ""}is a simulated audit-log event. No live cloud or identity log was connected.`
+                : `Imported audit-log data — this alert came from the log you uploaded. No live cloud or identity service is connected; the evidence below is from the file.`
             : "Demo finding — fictional sample data for illustration.";
 
   const changeStatus = (status, note) => {
@@ -202,7 +208,7 @@ export default function DemoFindingDetail() {
                     {STATUS_NOTE[f.status] || STATUS_NOTE.open}
                   </p>
                   <div className="status-actions">
-                    {(NEXT_ACTIONS[f.status] || []).map((a) => (
+                    {(NEXT_ACTIONS[f.status] || []).filter((a) => !a.alertOnly || f.source === "activity-fixture").map((a) => (
                       <button
                         key={a.label}
                         type="button"

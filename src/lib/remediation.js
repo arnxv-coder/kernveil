@@ -15,6 +15,8 @@ export const STATUS_LABEL = {
   "in-progress": "In progress",
   completed: "Completed",
   failed: "Failed",
+  investigating: "Investigating",
+  acknowledged: "Acknowledged",
 };
 
 export const STATUS_ORDER = {
@@ -22,9 +24,10 @@ export const STATUS_ORDER = {
   rejected: 1,
   "awaiting-approval": 2,
   approved: 3,
-  "in-progress": 4,
-  failed: 5,
-  completed: 6,
+  acknowledged: 4,
+  "in-progress": 5,
+  failed: 6,
+  completed: 7,
 };
 
 /* Legacy persisted keys (pre-Phase-2) mapped onto the new set. */
@@ -40,7 +43,9 @@ export const STATUS_GROUP = {
   rejected: "open",
   "awaiting-approval": "open",
   approved: "open",
+  acknowledged: "open",
   "in-progress": "wip",
+  investigating: "wip",
   failed: "open",
   completed: "resolved",
 };
@@ -234,6 +239,48 @@ function identityChange(f) {
   };
 }
 
+function activityChange(f) {
+  const ev = Object.fromEntries((f.evidence || []).map((e) => [e.key, e.value]));
+  const rule = f.rule || "unusual-login";
+  const who = f.actor || f.identity || f.username || "the actor";
+  const what = f.resource || ev.Resource || f.asset || "the resource";
+  const plans = {
+    "unusual-login": {
+      title: `Review the unexpected sign-in for ${who}`,
+      after: ["Confirm with the user whether the sign-in was theirs", "Expire the session and rotate the credential if it was not", "Turn on sign-in alerts for new regions"],
+    },
+    "failed-access": {
+      title: `Investigate the repeated failures for ${who}`,
+      after: ["Check the attempts against the account owner", "Enforce MFA (or rotate the service-account credential)", "Watch the account; block the source if it continues"],
+    },
+    "privilege-change": {
+      title: `Review the privilege change on ${who}`,
+      after: ["Identify who raised the role change and approve or revoke it", "Trim the account back to least privilege", "Alert on future privilege-grant events"],
+    },
+    "sensitive-access": {
+      title: `Review the access to ${what}`,
+      after: ["Confirm whether the read was legitimate", "Rotate the identity's credentials if it was not", "Restrict the resource to its normal callers and re-check"],
+    },
+    "admin-action": {
+      title: `Review the admin action on ${what}`,
+      after: ["Trace who requested the privileged action", "Undo the change if it was unintended", "Route future admin actions through approval"],
+    },
+  };
+  const t = plans[rule] || {
+    title: `Respond to the alert on ${what}`,
+    after: (f.steps || []).slice(0, 3).map(stripTags),
+  };
+  return {
+    kind: "config-change",
+    glow: "Alert response draft",
+    title: t.title,
+    resource: what,
+    before: evEntries(f.evidence),
+    after: t.after,
+    target: what,
+  };
+}
+
 export function remediationOf(f) {
   if (!f) return null;
   if (f.source === "github-connector") return githubDraft(f);
@@ -241,19 +288,33 @@ export function remediationOf(f) {
   if (f.source === "website-fixture") return websiteChange(f);
   if (f.source === "backup-fixture") return backupChange(f);
   if (f.source === "identity-fixture") return identityChange(f);
+  if (f.source === "activity-fixture") return activityChange(f);
   return genericDraft(f);
 }
 
 /* Actions available from each status. `note(plan)` is the audit reason
-   recorded alongside the transition. */
-const S = (to, label, primary, ghost, note) => ({ to, label, primary, ghost, note });
+   recorded alongside the transition. `alertOnly` actions appear only on
+   suspicious-activity alerts, keeping every other finding's flow exactly
+   as it already was. */
+const S = (to, label, primary, ghost, note, alertOnly) => ({ to, label, primary, ghost, note, alertOnly });
 
 export const NEXT_ACTIONS = {
   open: [
+    S("investigating", "Start investigating", true, false, (p) => `Opened an investigation — ${p.title}. Nothing changed; the audit trail records triage only.`, true),
     S("awaiting-approval", "Submit for approval", true, false, (p) =>
       `${p.glow} ready for review — ${p.title}. Nothing was opened in a real repository or cloud account.`
     ),
+    S("acknowledged", "Acknowledge", false, false, () => "Acknowledged — risk noted, investigation not started", true),
     S("in-progress", "Mark in progress", false, false, () => "Started without approval"),
+  ],
+  investigating: [
+    S("acknowledged", "Acknowledge", false, false, () => "Acknowledged while the investigation continues"),
+    S("completed", "Mark resolved", true, false, () => "Investigation concluded — activity reviewed and resolved"),
+    S("open", "Back to proposed", false, true, () => "Reopened — investigation paused"),
+  ],
+  acknowledged: [
+    S("open", "Reopen", true, false, () => "Reopened for investigation"),
+    S("completed", "Mark resolved", false, false, () => "Resolved after acknowledgement"),
   ],
   "awaiting-approval": [
     S("approved", "Approve remediation", true, false, () => "Approved — queued for execution"),

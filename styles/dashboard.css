@@ -920,6 +920,8 @@ body.demo-body {
 .st-work    { --st-c: var(--teal); color: var(--teal); }
 .st-rejected { --st-c: var(--slate); color: var(--text-3); }
 .st-failed  { --st-c: var(--orange); color: var(--orange); }
+.st-investigating { --st-c: var(--teal); color: var(--teal); }
+.st-acknowledged  { --st-c: var(--cyan); color: var(--cyan); }
 
 .table-filter-wrap {
   padding: 1.4rem 1.5rem;
@@ -3245,4 +3247,85 @@ body.demo-body {
 .cell-sub b.bad {
   color: var(--red);
   font-weight: 600;
+}
+
+/* ============================================================
+   Suspicious-activity analysis (Phase 7)
+   Register of alerts parsed from an audit-log export — alerts use
+   the same row pattern as backup/identity registers, normal events
+   sit in a cleared list, and a stats line keeps the source, event
+   window, and last-analysis time visible and honest.
+   ============================================================ */
+
+.act-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  align-items: baseline;
+  margin: 0.6rem 0 0.1rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+
+.act-stats b {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.act-ok .bk-dot {
+  --bk: var(--green);
+}
+
+.act-ok {
+  border-color: rgba(42, 230, 199, 0.22);
+}
+
+.act-normal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.act-restack .bk-hero {
+  margin: 0;
+}
+
+.act-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.8rem 0;
+}
+
+.filter-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  border-radius: var(--r-md);
+  padding: 0.55rem 2rem 0.55rem 0.85rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color var(--dur);
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: rgba(42, 230, 199, 0.5);
+}
+
+@media (max-width: 720px) {
+  .act-stats {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

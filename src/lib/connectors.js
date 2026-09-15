@@ -129,6 +129,11 @@ export function syncNoteOf(record) {
       ? `${record.records} identities · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"}`
       : `All ${record.records} identities meet the standards`;
   }
+  if (record.kind === "activity") {
+    return record.alerts && record.alerts.length
+      ? `${record.records} events · ${record.alerts.length} alert${record.alerts.length === 1 ? "" : "s"}`
+      : `All ${record.records} events normal`;
+  }
   return "Scan complete";
 }
 
