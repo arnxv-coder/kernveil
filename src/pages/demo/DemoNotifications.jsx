@@ -25,6 +25,7 @@ import {
   previewSubject,
 } from "../../lib/notifications.js";
 import { normalizeStatus } from "../../lib/remediation.js";
+import { approvedQueued } from "../../lib/remediationActions.js";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
 const PREFIX = {
@@ -202,8 +203,9 @@ export default function DemoNotifications() {
     const entries = notifications.filter((e) => e.type === type);
     const sorted = [...entries].sort((a, b) => (b.discoveredAt || 0) - (a.discoveredAt || 0));
     const previewFinding = previews[type];
-    const subject = previewSubject(type, previewFinding);
-    const rows = previewRows(type, previewFinding);
+    const queued = previewFinding ? approvedQueued(previewFinding) : null;
+    const subject = previewSubject(type, previewFinding, queued);
+    const rows = previewRows(type, previewFinding, queued);
     const count = notifCounts[type] || 0;
 
     return (

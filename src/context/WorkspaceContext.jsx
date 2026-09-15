@@ -9,6 +9,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { ASSETS, FINDINGS, WORKSPACE, OVERVIEW } from "../lib/data.js";
 import { appendSync, syncEntryFor } from "../lib/connectors.js";
 import { normalizeStatus, STATUS_LABEL, STATUS_GROUP } from "../lib/remediation.js";
+import { baseActionsFor, primaryActionFor } from "../lib/remediationActions.js";
 import { analyzeBackupSystems } from "../lib/backupScan.js";
 import { analyzeIdentities } from "../lib/identityScan.js";
 import {
@@ -32,6 +33,7 @@ export const ACTIVITY_KEY = "kernveil.activityScans.v1";
 export const NOTIF_KEY = "kernveil.notifications.v1";
 export const NOTIF_SETTINGS_KEY = "kernveil.notifSettings.v1";
 export const NOTIF_SEEN_KEY = "kernveil.notifSeen.v1";
+export const ACTION_STATE_KEY = "kernveil.actionState.v1";
 
 const SEV_WEIGHT = { critical: 12, high: 8, medium: 5, low: 3 };
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -161,6 +163,7 @@ export function WorkspaceProvider({ children }) {
   const [identityScans, setIdentityScans] = useState(() => loadJSON(IDENTITY_KEY, []));
   const [activityScans, setActivityScans] = useState(() => loadJSON(ACTIVITY_KEY, []));
   const [notifications, setNotifications] = useState(() => loadJSON(NOTIF_KEY, []));
+  const [actionStateMap, setActionStateMap] = useState(() => loadJSON(ACTION_STATE_KEY, {}));
   const [notifSettings, setNotifSettings] = useState(() => ({
     ...DEFAULT_NOTIF_SETTINGS,
     ...loadJSON(NOTIF_SETTINGS_KEY, {}),
@@ -179,6 +182,7 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => saveJSON(NOTIF_KEY, notifications), [notifications]);
   useEffect(() => saveJSON(NOTIF_SETTINGS_KEY, notifSettings), [notifSettings]);
   useEffect(() => saveJSON(NOTIF_SEEN_KEY, notifSeen), [notifSeen]);
+  useEffect(() => saveJSON(ACTION_STATE_KEY, actionStateMap), [actionStateMap]);
 
   const createWorkspace = useCallback((name) => {
     const ts = Date.now();
@@ -196,6 +200,7 @@ export function WorkspaceProvider({ children }) {
     setIdentityScans([]);
     setActivityScans([]);
     setNotifications([]);
+    setActionStateMap({});
     setNotifSettings({ ...DEFAULT_NOTIF_SETTINGS });
     setNotifSeen([]);
   }, []);
@@ -211,6 +216,7 @@ export function WorkspaceProvider({ children }) {
     setIdentityScans([]);
     setActivityScans([]);
     setNotifications([]);
+    setActionStateMap({});
     setNotifSettings({ ...DEFAULT_NOTIF_SETTINGS });
     setNotifSeen([]);
   }, []);
@@ -219,6 +225,19 @@ export function WorkspaceProvider({ children }) {
     const at = Date.now();
     setStateMap((prev) => ({ ...prev, [id]: { status, at } }));
     setActions((prev) => [...prev, { id: `${id}-${at}`, findingId: id, status, at, note }]);
+  }, []);
+
+  /* Phase 8 — approval-based remediation actions. Each action keeps its
+     own status (reusing the finding status set), while the transition is
+     written to the shared audit trail as kind:"action" so it appears in
+     the finding history and the recent-activity feed. */
+  const changeActionStatus = useCallback((actionId, findingId, status, note) => {
+    const at = Date.now();
+    setActionStateMap((prev) => ({ ...prev, [actionId]: { status, at } }));
+    setActions((prev) => [
+      ...prev,
+      { id: `act-${at}-${actionId}`, kind: "action", actionId, findingId, status, at, note },
+    ]);
   }, []);
 
   const putConnector = useCallback((record) => {
@@ -484,7 +503,10 @@ export function WorkspaceProvider({ children }) {
             ...f.history,
             ...own.map((a) => ({
               time: fmtTime(a.at),
-              text: `${STATUS_LABEL[normalizeStatus(a.status)]}${a.note ? ` — ${a.note}` : " — manual update"}`,
+              text:
+                a.kind === "action"
+                  ? a.note || `${STATUS_LABEL[normalizeStatus(a.status)]} — manual update`
+                  : `${STATUS_LABEL[normalizeStatus(a.status)]}${a.note ? ` — ${a.note}` : " — manual update"}`,
               c: auditColor(a.status),
             })),
           ]
@@ -492,7 +514,41 @@ export function WorkspaceProvider({ children }) {
       return { ...f, status, history, last: st ? "just now" : f.last };
     };
 
-    const findings = [...FINDINGS.map(mergeFinding), ...customRecords.map(mergeFinding)];
+    const baseFindings = [...FINDINGS.map(mergeFinding), ...customRecords.map(mergeFinding)];
+
+    /* Remediation actions (Phase 8) — per-finding approval-based action
+       records, with persisted status overrides and their own audit trail.
+       The primary (queue-relevant) action is attached to each finding so
+       notification previews can surface approved, queued actions. */
+    const liveActionEntries = (record) =>
+      actions
+        .filter((e) => e.kind === "action" && e.actionId === record.id)
+        .sort((a, b) => a.at - b.at)
+        .map((e) => ({
+          time: fmtTime(e.at),
+          text: e.note || `${STATUS_LABEL[normalizeStatus(e.status)] || "Action"} — manual update`,
+          c: auditColor(e.status),
+        }));
+
+    const actionsList = [];
+    for (const f of baseFindings) {
+      const base = baseActionsFor(f);
+      if (!base.eligible) continue;
+      for (const a of base.actions) {
+        const st = actionStateMap[a.id];
+        actionsList.push({
+          ...a,
+          findingId: f.id,
+          status: st ? normalizeStatus(st.status) : a.status,
+          history: [...(a.history || []), ...liveActionEntries(a)],
+        });
+      }
+    }
+
+    const actionCounts = { open: 0, "awaiting-approval": 0, approved: 0, rejected: 0, "in-progress": 0, failed: 0, completed: 0 };
+    for (const a of actionsList) actionCounts[a.status] = (actionCounts[a.status] || 0) + 1;
+
+    const findings = baseFindings.map((f) => ({ ...f, primaryAction: primaryActionFor(f, actionsList) }));
 
     /* Overview deltas relative to the narrative baseline. */
     const live = { open: SEED.byGrp.open, wip: SEED.byGrp.wip, resolved: SEED.byGrp.resolved };
@@ -621,6 +677,8 @@ export function WorkspaceProvider({ children }) {
       notifSettings,
       notifOpen,
       notifCounts,
+      actionsList,
+      actionCounts,
       cloudOpen,
       webOpen,
       backupOpen,
@@ -629,6 +687,7 @@ export function WorkspaceProvider({ children }) {
       overview,
       activity,
       setFindingStatus,
+      changeActionStatus,
       putConnector,
       removeConnector,
       putCloudScan,
@@ -653,7 +712,7 @@ export function WorkspaceProvider({ children }) {
       createWorkspace,
       resetWorkspace,
     };
-  }, [workspace, stateMap, actions, connectors, cloudScans, webScans, backupScans, identityScans, activityScans, notifications, notifSettings, setFindingStatus, putConnector, removeConnector, putCloudScan, removeCloudScan, putWebScan, removeWebScan, putBackupScan, removeBackupScan, updateBackupSchedule, putIdentityScan, removeIdentityScan, putActivityScan, removeActivityScan, updateNotifSetting, addNotifRecipient, removeNotifRecipient, dismissNotif, requestReminder, loadNotifHistory, clearNotifHistory, noteConnectorFailure, createWorkspace, resetWorkspace]);
+  }, [workspace, stateMap, actions, connectors, cloudScans, webScans, backupScans, identityScans, activityScans, notifications, actionStateMap, notifSettings, setFindingStatus, changeActionStatus, putConnector, removeConnector, putCloudScan, removeCloudScan, putWebScan, removeWebScan, putBackupScan, removeBackupScan, updateBackupSchedule, putIdentityScan, removeIdentityScan, putActivityScan, removeActivityScan, updateNotifSetting, addNotifRecipient, removeNotifRecipient, dismissNotif, requestReminder, loadNotifHistory, clearNotifHistory, noteConnectorFailure, createWorkspace, resetWorkspace]);
 
   /* Reactive alert engine — re-evaluates the unified findings against
      the persisted alert ledger whenever findings, settings, or the

@@ -3329,3 +3329,352 @@ body.demo-body {
     align-items: flex-start;
   }
 }
+/* ============================================================
+   Approval-based remediation actions (Phase 8)
+   Explicit, reviewable change records per finding — permission
+   reductions, security-header fixes, and exposed-resource fixes.
+   Every action requires explicit approval before it is queued;
+   the UI never claims a change was applied by Kernveil.
+   ============================================================ */
+
+.ra-block {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.ra-banner {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(244, 182, 74, 0.28);
+  border-radius: var(--r-md);
+  background: rgba(244, 182, 74, 0.06);
+}
+
+.ra-banner .ra-banner-ic {
+  flex: none;
+  color: var(--amber);
+  width: 20px;
+  height: 20px;
+  margin-top: 0.1rem;
+}
+
+.ra-banner strong {
+  display: block;
+  font-size: 0.84rem;
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.ra-banner span {
+  font-size: 0.82rem;
+  color: var(--text-3);
+  line-height: 1.55;
+}
+
+.ra-card {
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-md);
+  background: var(--inset);
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.ra-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ra-kind {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.6rem;
+  border-radius: var(--r-full);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+}
+
+.ra-kind-perm { color: var(--orange); border-color: rgba(244, 182, 74, 0.35); background: rgba(244, 182, 74, 0.06); }
+.ra-kind-hdr  { color: var(--cyan);   border-color: rgba(125, 219, 244, 0.3);  background: rgba(125, 219, 244, 0.06); }
+.ra-kind-exp  { color: var(--red);    border-color: rgba(239, 106, 114, 0.32); background: rgba(239, 106, 114, 0.06); }
+
+.ra-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  padding: 0.22rem 0.55rem;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-full);
+  background: var(--surface-1);
+  font-size: 0.68rem;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+}
+
+.ra-meta-pill b {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.ra-title {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.45;
+}
+
+.ra-target {
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+.ra-compare-hint {
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 0.35rem;
+}
+
+.ra-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.ra-info-field {
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+  padding: 0.6rem 0.75rem;
+}
+
+.ra-info-field .ra-field-label {
+  display: block;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 0.3rem;
+}
+
+.ra-info-field .ra-field-label.is-safe  { color: var(--green); }
+.ra-info-field .ra-field-label.is-risk  { color: var(--amber); }
+.ra-info-field .ra-field-label.is-rev   { color: var(--cyan); }
+
+.ra-info-field p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.ra-check-note {
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(239, 106, 114, 0.25);
+  background: rgba(239, 106, 114, 0.05);
+  font-size: 0.74rem;
+  color: var(--red);
+  line-height: 1.5;
+}
+
+.ra-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.32rem;
+  border-top: 1px dashed var(--border-faint);
+  padding-top: 0.7rem;
+}
+
+.ra-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.ra-history li::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ra-hist-c, var(--slate));
+  flex: none;
+  margin-top: 0.34rem;
+}
+
+.ra-history .ra-hist-time {
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  white-space: nowrap;
+  font-size: 0.68rem;
+}
+
+.ra-empty {
+  text-align: center;
+  padding: 1.1rem 1rem;
+  border: 1px dashed var(--border-faint);
+  border-radius: var(--r-md);
+  color: var(--text-3);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.ra-empty b {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+/* ---------- overview panel ---------- */
+
+.ra-panel {
+  margin-top: 1.2rem;
+}
+
+.ra-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.7rem 0 0.9rem;
+}
+
+.ra-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin-bottom: 0.9rem;
+}
+
+.ra-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ra-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  cursor: pointer;
+  transition: border-color var(--dur), transform var(--dur), background var(--dur);
+}
+
+.ra-row:hover,
+.ra-row:focus-visible {
+  border-color: rgba(42, 230, 199, 0.35);
+  background: var(--surface-2);
+  transform: translateY(-1px);
+}
+
+.ra-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ra-row-title {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--text-1);
+  line-height: 1.4;
+}
+
+.ra-row-sub {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-3);
+  margin-top: 0.12rem;
+}
+
+.ra-row-kind {
+  flex: none;
+}
+
+.ra-row-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+  font-size: 0.78rem;
+  color: var(--teal);
+  white-space: nowrap;
+}
+
+/* ---------- approval / completion modal ---------- */
+
+.ra-modal-summary {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.9rem 0 0.2rem;
+}
+
+.ra-modal-row {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.ra-modal-row .ra-modal-key {
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.ra-modal-row p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-2);
+  line-height: 1.55;
+}
+
+.ra-modal-honesty {
+  margin-top: 0.9rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(244, 182, 74, 0.26);
+  border-radius: var(--r-sm);
+  background: rgba(244, 182, 74, 0.05);
+  font-size: 0.78rem;
+  color: var(--text-3);
+  line-height: 1.55;
+}
+
+.ra-modal-honesty.is-warn {
+  border-color: rgba(239, 106, 114, 0.3);
+  background: rgba(239, 106, 114, 0.05);
+  color: var(--red);
+}
+
+.ra-modal-honesty b {
+  display: block;
+  color: var(--text-1);
+  margin-bottom: 0.2rem;
+}
+
+@media (max-width: 720px) {
+  .ra-info-grid {
+    grid-template-columns: 1fr;
+  }
+  .ra-row {
+    flex-wrap: wrap;
+  }
+}

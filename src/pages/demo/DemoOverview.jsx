@@ -13,6 +13,7 @@ import { RISK_SERIES } from "../../lib/data.js";
 import { severityPill, statusBadge } from "../../components/demo/badges.jsx";
 import { CONN_STATE_META, connStatusFor, lastSyncText } from "../../lib/connectors.js";
 import { normalizeStatus, STATUS_ORDER } from "../../lib/remediation.js";
+import { KIND_META } from "../../lib/remediationActions.js";
 import { useDashboardFx } from "../../hooks/useDashboardFx.js";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
@@ -205,11 +206,22 @@ function TrendChart() {
 
 /* ------------------------------- page ------------------------------- */
 
+const ACTION_STATUS_OPTIONS = [
+  { key: "all", label: "All states" },
+  { key: "open", label: "Proposed" },
+  { key: "awaiting-approval", label: "Awaiting approval" },
+  { key: "approved", label: "Approved" },
+  { key: "rejected", label: "Rejected" },
+  { key: "in-progress", label: "In progress" },
+  { key: "failed", label: "Failed" },
+  { key: "completed", label: "Completed" },
+];
+
 export default function DemoOverview() {
   const rootRef = useRef(null);
   const queueRef = useRef(null);
   useDashboardFx(rootRef);
-  const { findings: allFindings, assets, overview: o, activity, connectors, cloudScans, webScans, backupScans, identityScans, activityScans } = useWorkspace();
+  const { findings: allFindings, assets, overview: o, activity, connectors, cloudScans, webScans, backupScans, identityScans, activityScans, actionsList, actionCounts } = useWorkspace();
 
   const [term, setTerm] = useState("");
   const [sev, setSev] = useState("all");
@@ -218,8 +230,18 @@ export default function DemoOverview() {
   const [asset, setAsset] = useState("all");
   const [loading, setLoading] = useState(true);
 
+  const [actSev, setActSev] = useState("all");
+  const [actSrc, setActSrc] = useState("all");
+  const [actStatus, setActStatus] = useState("all");
+  const [actLoading, setActLoading] = useState(true);
+
   useEffect(() => {
     const t = window.setTimeout(() => setLoading(false), 420);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setActLoading(false), 560);
     return () => window.clearTimeout(t);
   }, []);
 
@@ -256,6 +278,33 @@ export default function DemoOverview() {
   }, [allFindings, assets]);
 
   const assetName = (id) => (assets.find((a) => a.id === id) || {}).name || id;
+
+  const findingById = useMemo(() => {
+    const m = new Map();
+    for (const f of allFindings) m.set(f.id, f);
+    return m;
+  }, [allFindings]);
+
+  const filteredActions = useMemo(() => {
+    return (actionsList || [])
+      .filter((a) => {
+        const find = findingById.get(a.findingId);
+        if (!find) return false;
+        if (actSev !== "all" && find.severity !== actSev) return false;
+        if (actSrc !== "all" && sourceOf(find) !== actSrc) return false;
+        if (actStatus !== "all" && a.status !== actStatus) return false;
+        return true;
+      })
+      .sort((x, y) => {
+        const fx = findingById.get(x.findingId);
+        const fy = findingById.get(y.findingId);
+        if (!fx || !fy) return 0;
+        const sx = SEV_RANK[fx.severity] ?? 5;
+        const sy = SEV_RANK[fy.severity] ?? 5;
+        if (sx !== sy) return sx - sy;
+        return (STATUS_ORDER[x.status] ?? 9) - (STATUS_ORDER[y.status] ?? 9);
+      });
+  }, [actionsList, findingById, actSev, actSrc, actStatus]);
 
   const topOpen = useMemo(
     () => priorityRows(allFindings.filter((f) => f.status !== "completed"))[0] || null,
@@ -666,6 +715,180 @@ export default function DemoOverview() {
                 })}
               </ul>
             )}
+          </section>
+
+          <section className="panel ra-panel" id="actionsPanel">
+            <div className="queue-top">
+              <div className="queue-head">
+                <span className="panel-label">Remediation actions</span>
+                <span className="queue-sub mono" id="actionsSub">
+                  {actionsList.length} action{actionsList.length === 1 ? "" : "s"} · explicit approval required · nothing applied automatically
+                </span>
+              </div>
+            </div>
+
+            <div className="ra-counts" id="actionsCounts">
+              {[
+                ["open", "Proposed"],
+                ["awaiting-approval", "Awaiting approval"],
+                ["approved", "Approved"],
+                ["rejected", "Rejected"],
+                ["in-progress", "In progress"],
+                ["failed", "Failed"],
+                ["completed", "Completed"],
+              ].map(([k, label]) => (
+                <span className="notif-summary-chip" key={k} data-action-state={k}>
+                  <b>{actionCounts[k] || 0}</b> {label}
+                </span>
+              ))}
+            </div>
+
+            <div className="ra-filterbar">
+              <Seg
+                dataKey="severity"
+                value={actSev}
+                onChange={setActSev}
+                options={[
+                  { key: "all", label: "All severities" },
+                  { key: "critical", label: "Critical" },
+                  { key: "high", label: "High" },
+                  { key: "medium", label: "Medium" },
+                  { key: "low", label: "Low" },
+                ]}
+              />
+              <div className="chip-set" role="group" aria-label="Filter actions by state">
+                {ACTION_STATUS_OPTIONS.map((o) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    className={`chip${actStatus === o.key ? " is-active" : ""}`}
+                    aria-pressed={actStatus === o.key}
+                    onClick={() => setActStatus((prev) => (prev === o.key ? "all" : o.key))}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <div className="chip-set" role="group" aria-label="Filter actions by source">
+                {sources.map((s) => {
+                  if (s === "all") {
+                    return (
+                      <button
+                        key="all"
+                        type="button"
+                        className={`chip${actSrc === "all" ? " is-active" : ""}`}
+                        aria-pressed={actSrc === "all"}
+                        onClick={() => setActSrc("all")}
+                      >
+                        All sources
+                      </button>
+                    );
+                  }
+                  const m = SRC_META[s];
+                  if (!m) return null;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`chip${actSrc === s ? " is-active" : ""}`}
+                      aria-pressed={actSrc === s}
+                      onClick={() => setActSrc((prev) => (prev === s ? "all" : s))}
+                    >
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {actLoading ? (
+              <div className="scan-progress" id="actionsLoading" role="status" aria-live="polite">
+                <span className="scan-spinner" aria-hidden="true"></span>
+                <span className="scan-label">Preparing remediation actions…</span>
+                <p className="conn-scan-note">Only proposals and honest statuses — no automatic changes.</p>
+              </div>
+            ) : filteredActions.length === 0 ? (
+              <div className="empty-state" id="actionsEmpty">
+                <div className="empty-ic" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <rect x="4.5" y="10.5" width="15" height="9" rx="1.8" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    <path d="M12 14v1.5M12 17.1h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <h3>No remediation actions here</h3>
+                <p>
+                  {actionsList.length === 0
+                    ? "There are no remediation actions in this workspace yet. Open a finding that needs a change to review what Kernveil proposes."
+                    : "No actions match these filters."}
+                </p>
+                {(actSev !== "all" || actSrc !== "all" || actStatus !== "all") && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    id="actionsClearFilters"
+                    onClick={() => {
+                      setActSev("all");
+                      setActSrc("all");
+                      setActStatus("all");
+                    }}
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <ul className="ra-list" id="actionsList">
+                {filteredActions.map((a) => {
+                  const find = findingById.get(a.findingId);
+                  if (!find) return null;
+                  const kind = KIND_META[a.kind] || { label: a.kind, cls: "" };
+                  const meta = SRC_META[sourceOf(find)];
+                  return (
+                    <li
+                      key={a.id}
+                      className="ra-row"
+                      data-action-id={a.id}
+                      data-action-state={a.status}
+                      tabIndex="0"
+                      role="button"
+                      aria-label={`Open the finding for ${a.label}`}
+                      onClick={() => openDetail(a.findingId)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openDetail(a.findingId);
+                        }
+                      }}
+                    >
+                      <span className={`ra-kind ra-row-kind ${kind.cls || ""}`}>{kind.label}</span>
+                      <span className="ra-row-main">
+                        <span className="ra-row-title">{a.label}</span>
+                        <span className="ra-row-sub mono">{a.target}</span>
+                      </span>
+                      <span className="queue-asset">{assetName(find.asset)}</span>
+                      <span>{severityPill(find.severity)}</span>
+                      <span className="queue-src">
+                        <span className="qdot" style={{ background: meta ? meta.dot : "var(--slate)" }}></span>
+                        {meta ? meta.label : sourceOf(find)}
+                      </span>
+                      {statusBadge(a.status)}
+                      <span className="ra-row-action">
+                        {a.status === "approved" ? "Queued" : "Open finding"}
+                        <svg className="ic" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <p className="remed-note" style={{ marginTop: "0.7rem" }}>
+              Remediation progress updates live as actions move through approval. Kernveil proposes; it never applies a change on its own.
+              You can open the finding to approve, reject, or complete an action.
+            </p>
           </section>
 
           <section className="panel recommend-panel">

@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { gsap, reducedMotion, TYPE_ICONS } from "../../lib/anim.jsx";
 import { severityPill, statusBadge } from "../../components/demo/badges.jsx";
+import ActionModal from "../../components/demo/ActionModal.jsx";
 import { NEXT_ACTIONS, remediationOf } from "../../lib/remediation.js";
+import { ACTION_NEXT, KIND_META, EXEC_META, baseActionsFor, dataStatusMeta } from "../../lib/remediationActions.js";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
 const STATUS_NOTE = {
@@ -25,12 +27,45 @@ export default function DemoFindingDetail() {
   const REDUCED = reducedMotion();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { findings, assets, actions, setFindingStatus, notifications } = useWorkspace();
+  const { findings, assets, actions, setFindingStatus, notifications, actionsList, changeActionStatus } = useWorkspace();
   const [saved, setSaved] = useState(false);
+  const [modal, setModal] = useState(null);
+  const [actionSaved, setActionSaved] = useState(false);
+  const [actionsLoading, setActionsLoading] = useState(true);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setActionsLoading(false), 300);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const flashAction = () => {
+    setActionSaved(true);
+    window.clearTimeout(flashAction._t);
+    flashAction._t = window.setTimeout(() => setActionSaved(false), 3200);
+  };
 
   const id = params.get("id");
   const f = findings.find((x) => x.id === id);
   const plan = remediationOf(f);
+  const actBase = f ? baseActionsFor(f) : null;
+  const myActions = (actionsList || []).filter((a) => a.findingId === f?.id);
+
+  const runAction = (action, trans) => {
+    if (trans.confirm) {
+      setModal({ action, trans });
+      return;
+    }
+    changeActionStatus(action.id, f.id, trans.to, trans.note ? trans.note(action) : undefined);
+    flashAction();
+  };
+
+  const confirmModal = () => {
+    if (!modal) return;
+    const { action, trans } = modal;
+    changeActionStatus(action.id, f.id, trans.to, trans.note ? trans.note(action) : undefined);
+    setModal(null);
+    flashAction();
+  };
 
   const repoAsset = f ? assets.find((a) => a.id === f.asset) : null;
   const sourceNote =
@@ -248,6 +283,141 @@ export default function DemoFindingDetail() {
                   </div>
                 )}
 
+                <div className="panel detail-block" id="findingActions">
+                  <div className="status-badge-row">
+                    <h4 style={{ margin: 0 }}>Remediation actions</h4>
+                    {actionSaved && <span className="status-saved" id="actionSaved">Saved to this workspace</span>}
+                  </div>
+
+                  {actionsLoading ? (
+                    <div className="scan-progress ra-block" id="actionsLoading" role="status" aria-live="polite">
+                      <span className="scan-spinner" aria-hidden="true"></span>
+                      <span className="scan-label">Preparing remediation actions…</span>
+                      <p className="conn-scan-note">Only proposals and honest statuses — nothing is applied automatically.</p>
+                    </div>
+                  ) : myActions.length ? (
+                    <>
+                      <div className="ra-banner" id="actBanner">
+                        <svg className="ra-banner-ic" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <rect x="4.5" y="10.5" width="15" height="9" rx="1.8" stroke="currentColor" strokeWidth="1.6" />
+                          <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                          <path d="M12 14v2M12 17.6h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                        <div>
+                          <strong>Requires explicit approval</strong>
+                          <span>
+                            Kernveil never applies a change on its own. Every action below needs your sign-off before it is queued,
+                            and each status is honest about whether anything has actually been changed.
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="ra-block">
+                        {myActions.map((a) => {
+                          const kind = KIND_META[a.kind] || { label: a.kind, cls: "" };
+                          const data = dataStatusMeta(a.dataStatus);
+                          const exec = EXEC_META[a.executionContext] || { label: a.executionContext || "Draft" };
+                          return (
+                            <article className="ra-card" key={a.id} data-action-id={a.id} id={`actionCard-${a.id}`}>
+                              <div className="ra-head">
+                                <span className={`ra-kind ${kind.cls || ""}`}>{kind.label}</span>
+                                {statusBadge(a.status)}
+                                <span className="ra-meta-pill" title={data.note}><b>{data.label}</b></span>
+                                <span className="ra-meta-pill" title={exec.note}><b>{exec.label}</b></span>
+                              </div>
+                              <p className="ra-title">{a.label}</p>
+                              <p className="ra-target mono">Target: {a.target}</p>
+
+                              <div>
+                                <span className="ra-compare-hint">Proposed change</span>
+                                <div className="plan-compare">
+                                  <div className="plan-side">
+                                    <span className="plan-side-label">Now</span>
+                                    <ul><li>{a.currentState}</li></ul>
+                                  </div>
+                                  <div className="plan-side plan-after">
+                                    <span className="plan-side-label">After</span>
+                                    <ul><li>{a.proposedState}</li></ul>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="ra-info-grid">
+                                <div className="ra-info-field">
+                                  <span className="ra-field-label">Security benefit</span>
+                                  <p>{a.securityBenefit}</p>
+                                </div>
+                                <div className="ra-info-field">
+                                  <span className="ra-field-label is-safe">Why this is safe</span>
+                                  <p>{a.safeReason}</p>
+                                </div>
+                                <div className="ra-info-field">
+                                  <span className="ra-field-label is-risk">Operational impact</span>
+                                  <p>{a.operationalImpact}</p>
+                                </div>
+                                <div className="ra-info-field">
+                                  <span className="ra-field-label is-rev">Reversal</span>
+                                  <p>{a.reversal}</p>
+                                </div>
+                              </div>
+
+                              {a.status === "completed" && (
+                                <p className="ra-modal-honesty is-warn" style={{ marginTop: 0 }}>
+                                  <b>Honest status</b>
+                                  {exec.note || "Applied outside Kernveil and verified. Kernveil itself changed nothing."}
+                                </p>
+                              )}
+                              {a.status !== "completed" && a.executionContext === "pending-external" && (
+                                <p className="ra-check-note">
+                                  This is a real change Kernveil cannot execute itself — it stays pending your own change process until verified.
+                                </p>
+                              )}
+
+                              {(a.history || []).length > 0 && (
+                                <ul className="ra-history">
+                                  {a.history.map((h, i) => (
+                                    <li key={i} style={{ "--ra-hist-c": h.c || "var(--slate)" }}>
+                                      <span>{h.text}</span>
+                                      <span className="ra-hist-time">{h.time}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+
+                              <div className="status-actions">
+                                {(ACTION_NEXT[a.status] || []).map((t) => (
+                                  <button
+                                    key={t.label}
+                                    type="button"
+                                    className={`btn ${t.primary ? "btn-primary" : t.ghost ? "btn-ghost" : "btn-secondary"} btn-sm`}
+                                    onClick={() => runAction(a, t)}
+                                  >
+                                    {t.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : f.status === "completed" ? (
+                    <div className="ra-empty" id="actEmpty">
+                      <b>Nothing to remediate</b>
+                      This finding is already completed — the actions on it were resolved. It re-enters the queue only if the issue reappears.
+                    </div>
+                  ) : (
+                    <div className="ra-empty" id="actEmpty">
+                      <b>No eligible remediation available</b>
+                      <span>
+                        {actBase && actBase.reason
+                          ? actBase.reason
+                          : "This finding type isn't part of the approval-based action remit. The existing remediation draft above still applies through the finding workflow."}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="panel detail-block">
                   <h4>Alerts for this finding</h4>
                   <div id="findingAlerts" style={{ display: "grid", gap: "0.5rem" }}>
@@ -299,6 +469,15 @@ export default function DemoFindingDetail() {
           </>
         )}
       </div>
+
+      <ActionModal
+        open={!!modal}
+        action={modal ? modal.action : null}
+        finding={f}
+        mode={modal ? modal.trans.confirm : null}
+        onConfirm={confirmModal}
+        onClose={() => setModal(null)}
+      />
     </div>
   );
 }

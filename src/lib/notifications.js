@@ -10,6 +10,7 @@
    here ever claims an email was delivered.
    ============================================================ */
 import { STATUS_LABEL, normalizeStatus } from "./remediation.js";
+import { approvedQueued } from "./remediationActions.js";
 
 export const EMAIL_CAPABILITY = "preview"; // "preview" | "connected" — never connected in this demo
 
@@ -108,7 +109,8 @@ const DOC = {
   delivery: "preview",
 };
 
-export function makeCriticalAlert(f, cycle) {
+export function makeCriticalAlert(f, cycle, queued) {
+  const hasQueued = queued && queued.label;
   return {
     ...DOC,
     id: `al-crit-${f.id}-${cycle}`,
@@ -126,10 +128,12 @@ export function makeCriticalAlert(f, cycle) {
     action: firstStep(f),
     firstDetected: f.first,
     discoveredAt: Date.now(),
+    ...(hasQueued ? { queuedAction: queued } : {}),
   };
 }
 
-export function makeOverdueAlert(f, cycle) {
+export function makeOverdueAlert(f, cycle, queued) {
+  const hasQueued = queued && queued.label;
   return {
     ...DOC,
     id: `al-ovr-${f.id}-${cycle}`,
@@ -148,6 +152,7 @@ export function makeOverdueAlert(f, cycle) {
     risk: stripTags(f.why) || stripTags(f.summary),
     firstDetected: f.first,
     discoveredAt: Date.now(),
+    ...(hasQueued ? { queuedAction: queued } : {}),
   };
 }
 
@@ -254,14 +259,19 @@ export function sampleHistory(type) {
 
 /* ---------- previews and rendered body ---------- */
 
-export function previewSubject(type, f) {
+export function previewSubject(type, f, queued) {
   if (!f) return "";
-  if (type === "critical-finding") return `[Critical] ${f.title} — ${f.asset}`;
-  return `[Overdue] ${f.title} — open for ${overdueFor(f)}`;
+  if (type === "critical-finding") {
+    const q = queued && queued.label;
+    return `[Critical] ${f.title} — ${f.asset}${q ? ` · queued: ${q}` : ""}`;
+  }
+  const q = queued && queued.label;
+  return `[Overdue] ${f.title} — open for ${overdueFor(f)}${q ? ` · queued: ${q}` : ""}`;
 }
 
-export function previewRows(type, f) {
+export function previewRows(type, f, queued) {
   if (!f) return [];
+  const q = queued && queued.label;
   if (type === "critical-finding") {
     return [
       { k: "Severity", v: "Critical" },
@@ -269,6 +279,7 @@ export function previewRows(type, f) {
       { k: "Source", v: sourceLabel(f) },
       { k: "Risk", v: stripTags(f.why) || stripTags(f.summary) },
       { k: "Recommended action", v: firstStep(f) },
+      ...(q ? [{ k: "Queued remediation", v: `${queued.label} — ${queued.target || f.asset}` }] : []),
     ];
   }
   return [
@@ -276,10 +287,12 @@ export function previewRows(type, f) {
     { k: "Current status", v: STATUS_LABEL[normalizeStatus(f.status)] || "Proposed" },
     { k: "Overdue by", v: overdueFor(f) },
     { k: "Recommended next action", v: firstStep(f) },
+    ...(q ? [{ k: "Queued remediation", v: `${queued.label} — ${queued.target || f.asset}` }] : []),
   ];
 }
 
 export function entryRows(type, entry) {
+  const q = entry.queuedAction && entry.queuedAction.label;
   if (type === "critical-finding") {
     return [
       { k: "Severity", v: entry.severity },
@@ -287,6 +300,7 @@ export function entryRows(type, entry) {
       { k: "Source", v: entry.source },
       { k: "Risk", v: entry.risk },
       { k: "Recommended action", v: entry.action },
+      ...(q ? [{ k: "Queued remediation", v: `${entry.queuedAction.label} — ${entry.queuedAction.target || entry.asset}` }] : []),
     ];
   }
   return [
@@ -294,6 +308,7 @@ export function entryRows(type, entry) {
     { k: "Current status", v: entry.remediationStatus },
     { k: "Overdue by", v: entry.overdueFor },
     { k: "Recommended next action", v: entry.nextAction },
+    ...(q ? [{ k: "Queued remediation", v: `${entry.queuedAction.label} — ${entry.queuedAction.target || entry.asset}` }] : []),
   ];
 }
 
@@ -342,7 +357,7 @@ export function stageNotifications({ findings, settings, existing = [], seen = [
       const key = `critical-finding|${f.id}|${cycle}`;
       const already = existing.some((e) => e.type === "critical-finding" && e.findingId === f.id && e.event === cycle);
       if (!already && !seen.includes(key)) {
-        additions.push({ key, entry: makeCriticalAlert(f, cycle) });
+        additions.push({ key, entry: makeCriticalAlert(f, cycle, approvedQueued(f)) });
         newSeen.push(key);
       }
     }
@@ -352,7 +367,7 @@ export function stageNotifications({ findings, settings, existing = [], seen = [
       const key = `overdue-remediation|${f.id}|${cycle}`;
       const already = existing.some((e) => e.type === "overdue-remediation" && e.findingId === f.id && e.event === cycle);
       if (!already && !seen.includes(key)) {
-        additions.push({ key, entry: makeOverdueAlert(f, cycle) });
+        additions.push({ key, entry: makeOverdueAlert(f, cycle, approvedQueued(f)) });
         newSeen.push(key);
       }
     }
