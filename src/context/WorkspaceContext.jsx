@@ -10,6 +10,14 @@ import { ASSETS, FINDINGS, WORKSPACE, OVERVIEW } from "../lib/data.js";
 import { appendSync, syncEntryFor } from "../lib/connectors.js";
 import { normalizeStatus, STATUS_LABEL, STATUS_GROUP } from "../lib/remediation.js";
 import { analyzeBackupSystems } from "../lib/backupScan.js";
+import {
+  DEFAULT_NOTIF_SETTINGS,
+  NOTIFICATION_TYPES,
+  activeCountFor,
+  makeReminder,
+  sampleHistory,
+  stageNotifications,
+} from "../lib/notifications.js";
 
 export const WORKSPACE_KEY = "kernveil.workspace.v1";
 export const FINDING_STATE_KEY = "kernveil.findingState.v1";
@@ -18,6 +26,9 @@ export const CONNECTORS_KEY = "kernveil.connectors.v1";
 export const CLOUD_KEY = "kernveil.cloudScans.v1";
 export const WEBSITE_KEY = "kernveil.websiteScans.v1";
 export const BACKUP_KEY = "kernveil.backupScans.v1";
+export const NOTIF_KEY = "kernveil.notifications.v1";
+export const NOTIF_SETTINGS_KEY = "kernveil.notifSettings.v1";
+export const NOTIF_SEEN_KEY = "kernveil.notifSeen.v1";
 
 const SEV_WEIGHT = { critical: 12, high: 8, medium: 5, low: 3 };
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -120,6 +131,20 @@ function auditColor(status) {
   }
 }
 
+/* Merge a staging pass into the persisted alert ledger. Idempotent:
+   duplicate additions collapse and updates touch only existing ids. */
+function applyStage(prev, staged) {
+  const byId = new Map(prev.map((e) => [e.id, e]));
+  for (const u of staged.updates) {
+    const cur = byId.get(u.id);
+    if (cur) byId.set(u.id, { ...cur, ...u.patch });
+  }
+  for (const a of staged.additions) {
+    if (!byId.has(a.entry.id)) byId.set(a.entry.id, a.entry);
+  }
+  return [...byId.values()];
+}
+
 const WorkspaceContext = createContext(null);
 
 export function WorkspaceProvider({ children }) {
@@ -130,6 +155,12 @@ export function WorkspaceProvider({ children }) {
   const [cloudScans, setCloudScans] = useState(() => loadJSON(CLOUD_KEY, []));
   const [webScans, setWebScans] = useState(() => loadJSON(WEBSITE_KEY, []));
   const [backupScans, setBackupScans] = useState(() => loadJSON(BACKUP_KEY, []));
+  const [notifications, setNotifications] = useState(() => loadJSON(NOTIF_KEY, []));
+  const [notifSettings, setNotifSettings] = useState(() => ({
+    ...DEFAULT_NOTIF_SETTINGS,
+    ...loadJSON(NOTIF_SETTINGS_KEY, {}),
+  }));
+  const [notifSeen, setNotifSeen] = useState(() => loadJSON(NOTIF_SEEN_KEY, []));
 
   useEffect(() => saveJSON(WORKSPACE_KEY, workspace), [workspace]);
   useEffect(() => saveJSON(FINDING_STATE_KEY, stateMap), [stateMap]);
@@ -138,6 +169,9 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => saveJSON(CLOUD_KEY, cloudScans), [cloudScans]);
   useEffect(() => saveJSON(WEBSITE_KEY, webScans), [webScans]);
   useEffect(() => saveJSON(BACKUP_KEY, backupScans), [backupScans]);
+  useEffect(() => saveJSON(NOTIF_KEY, notifications), [notifications]);
+  useEffect(() => saveJSON(NOTIF_SETTINGS_KEY, notifSettings), [notifSettings]);
+  useEffect(() => saveJSON(NOTIF_SEEN_KEY, notifSeen), [notifSeen]);
 
   const createWorkspace = useCallback((name) => {
     const ts = Date.now();
@@ -152,6 +186,9 @@ export function WorkspaceProvider({ children }) {
     setCloudScans([]);
     setWebScans([]);
     setBackupScans([]);
+    setNotifications([]);
+    setNotifSettings({ ...DEFAULT_NOTIF_SETTINGS });
+    setNotifSeen([]);
   }, []);
 
   const resetWorkspace = useCallback(() => {
@@ -162,6 +199,9 @@ export function WorkspaceProvider({ children }) {
     setCloudScans([]);
     setWebScans([]);
     setBackupScans([]);
+    setNotifications([]);
+    setNotifSettings({ ...DEFAULT_NOTIF_SETTINGS });
+    setNotifSeen([]);
   }, []);
 
   const setFindingStatus = useCallback((id, status, note) => {
@@ -311,6 +351,52 @@ export function WorkspaceProvider({ children }) {
     setBackupScans((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
+  /* ---------- email notification controls (Phase 5) ---------- */
+
+  const updateNotifSetting = useCallback((type, patch) => {
+    setNotifSettings((prev) => ({
+      ...prev,
+      [type]: { ...DEFAULT_NOTIF_SETTINGS[type], ...prev[type], ...patch },
+    }));
+  }, []);
+
+  const addNotifRecipient = useCallback((type, email) => {
+    setNotifSettings((prev) => {
+      const cur = prev[type] || DEFAULT_NOTIF_SETTINGS[type];
+      if (cur.recipients.includes(email)) return prev;
+      return { ...prev, [type]: { ...cur, recipients: [...cur.recipients, email] } };
+    });
+  }, []);
+
+  const removeNotifRecipient = useCallback((type, email) => {
+    setNotifSettings((prev) => {
+      const cur = prev[type] || DEFAULT_NOTIF_SETTINGS[type];
+      return { ...prev, [type]: { ...cur, recipients: cur.recipients.filter((r) => r !== email) } };
+    });
+  }, []);
+
+  const dismissNotif = useCallback((id) => {
+    setNotifications((prev) => prev.map((e) => (e.id === id ? { ...e, status: "dismissed" } : e)));
+  }, []);
+
+  const requestReminder = useCallback((type, findingId) => {
+    setNotifications((prev) => {
+      const base = [...prev]
+        .filter((e) => e.type === type && e.findingId === findingId && e.mode === "generated")
+        .sort((a, b) => (b.discoveredAt || 0) - (a.discoveredAt || 0))[0];
+      if (!base) return prev;
+      return [...prev, makeReminder(base)];
+    });
+  }, []);
+
+  const loadNotifHistory = useCallback((type) => {
+    setNotifications((prev) => [...prev, ...sampleHistory(type)]);
+  }, []);
+
+  const clearNotifHistory = useCallback((type) => {
+    setNotifications((prev) => prev.filter((e) => e.type !== type));
+  }, []);
+
   const value = useMemo(() => {
     /* Findings imported from connected repositories, cloud fixtures,
        website scans, and backup registers. */
@@ -405,11 +491,12 @@ export function WorkspaceProvider({ children }) {
        the seeded trail. */
     const userActivity = [...actions]
       .reverse()
-      .map((a) =>
-        a.kind === "connector"
+      .map((a) => {
+        if (a.kind === "alert") return { id: a.id, c: "var(--amber)", txt: a.text, t: "just now" };
+        return a.kind === "connector"
           ? { id: a.id, c: a.c || "var(--teal)", txt: a.text, t: "just now" }
-          : { id: a.id, ...activityMeta(a, findings), t: "just now" }
-      );
+          : { id: a.id, ...activityMeta(a, findings), t: "just now" };
+      });
     const activity = [...userActivity, ...SEED_ACTIVITY].slice(0, 8);
 
     const cloudOpen = cloudScans
@@ -433,6 +520,12 @@ export function WorkspaceProvider({ children }) {
         return status !== "completed";
       }).length;
 
+    const notifCounts = NOTIFICATION_TYPES.reduce((acc, t) => {
+      acc[t.key] = activeCountFor(notifications, t.key, notifSettings[t.key]?.enabled !== false);
+      return acc;
+    }, {});
+    const notifOpen = NOTIFICATION_TYPES.reduce((n, t) => n + (notifCounts[t.key] || 0), 0);
+
     return {
       workspace,
       findings,
@@ -441,6 +534,10 @@ export function WorkspaceProvider({ children }) {
       cloudScans,
       webScans,
       backupScans,
+      notifications,
+      notifSettings,
+      notifOpen,
+      notifCounts,
       cloudOpen,
       webOpen,
       backupOpen,
@@ -456,11 +553,45 @@ export function WorkspaceProvider({ children }) {
       putBackupScan,
       removeBackupScan,
       updateBackupSchedule,
+      updateNotifSetting,
+      addNotifRecipient,
+      removeNotifRecipient,
+      dismissNotif,
+      requestReminder,
+      loadNotifHistory,
+      clearNotifHistory,
       noteConnectorFailure,
       createWorkspace,
       resetWorkspace,
     };
-  }, [workspace, stateMap, actions, connectors, cloudScans, webScans, backupScans, setFindingStatus, putConnector, removeConnector, putCloudScan, removeCloudScan, putWebScan, removeWebScan, putBackupScan, removeBackupScan, updateBackupSchedule, noteConnectorFailure, createWorkspace, resetWorkspace]);
+  }, [workspace, stateMap, actions, connectors, cloudScans, webScans, backupScans, notifications, notifSettings, setFindingStatus, putConnector, removeConnector, putCloudScan, removeCloudScan, putWebScan, removeWebScan, putBackupScan, removeBackupScan, updateBackupSchedule, updateNotifSetting, addNotifRecipient, removeNotifRecipient, dismissNotif, requestReminder, loadNotifHistory, clearNotifHistory, noteConnectorFailure, createWorkspace, resetWorkspace]);
+
+  /* Reactive alert engine — re-evaluates the unified findings against
+     the persisted alert ledger whenever findings, settings, or the
+     ledger change. Pure + idempotent: repeated runs add nothing. */
+  useEffect(() => {
+    if (!workspace) return;
+    const staged = stageNotifications({
+      findings: value.findings,
+      settings: notifSettings,
+      existing: notifications,
+      seen: notifSeen,
+    });
+    if (!staged.additions.length && !staged.updates.length) return;
+    setNotifications((prev) => applyStage(prev, staged));
+    setNotifSeen((prev) => Array.from(new Set([...prev, ...staged.newSeen])));
+    staged.additions.forEach((a) => {
+      setActions((prev) => [
+        ...prev,
+        {
+          id: `nt-${a.entry.id}`,
+          kind: "alert",
+          text: `Alert queued — ${a.entry.title} (preview, nothing sent)`,
+          at: Date.now(),
+        },
+      ]);
+    });
+  }, [workspace, value, notifSettings, notifications, notifSeen]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

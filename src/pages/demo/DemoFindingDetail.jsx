@@ -23,7 +23,7 @@ export default function DemoFindingDetail() {
   const REDUCED = reducedMotion();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { findings, assets, actions, setFindingStatus } = useWorkspace();
+  const { findings, assets, actions, setFindingStatus, notifications } = useWorkspace();
   const [saved, setSaved] = useState(false);
 
   const id = params.get("id");
@@ -237,6 +237,28 @@ export default function DemoFindingDetail() {
                     <p>This change has been applied and verified. Kernveil keeps monitoring; it will re-propose remediation if the issue returns.</p>
                   </div>
                 )}
+
+                <div className="panel detail-block">
+                  <h4>Alerts for this finding</h4>
+                  <div id="findingAlerts" style={{ display: "grid", gap: "0.5rem" }}>
+                    {notifications.filter((n) => n.findingId === f.id).length ? (
+                      notifications
+                        .filter((n) => n.findingId === f.id)
+                        .map((n) => (
+                          <span key={n.id} className={`finding-alert ${n.type === "critical-finding" ? "is-critical" : "is-overdue"}`}>
+                            <b>{n.type === "critical-finding" ? "Critical finding" : "Overdue remediation"}</b>
+                            <span>
+                              {n.title} · {n.status === "resolved" ? "resolved" : n.status === "cleared" ? "cleared" : n.status === "dismissed" ? "dismissed" : "new"} · preview, not sent
+                            </span>
+                          </span>
+                        ))
+                    ) : (
+                      <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-disabled)" }}>
+                        No alerts have been generated for this finding yet. Alerts are previews only — nothing is sent.
+                      </p>
+                    )}
+                  </div>
+                </div>
 
                 {steps}
 

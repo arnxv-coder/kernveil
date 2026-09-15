@@ -7,7 +7,7 @@ import { BrandMark } from "../../components/Icons.jsx";
 import { useWorkspace, initialsOf } from "../../context/WorkspaceContext.jsx";
 
 export default function DemoLayout({ page, children }) {
-  const { workspace, overview, resetWorkspace, assets, cloudOpen, webOpen, backupOpen } = useWorkspace();
+  const { workspace, overview, resetWorkspace, assets, cloudOpen, webOpen, backupOpen, notifOpen } = useWorkspace();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -105,6 +105,18 @@ export default function DemoLayout({ page, children }) {
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M9 3v5M15 3v5M9 8h6v3a3 3 0 01-6 0V8z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M12 11v9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      page: "notifications",
+      to: "/demo-notifications",
+      label: "Notifications",
+      count: notifOpen || null,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3l8 3.5v5c0 4.6-3.2 8.1-8 9.5-4.8-1.4-8-4.9-8-9.5v-5L12 3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M12 8v4M12 15.5h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
       ),
     },
