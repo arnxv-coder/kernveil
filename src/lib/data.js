@@ -471,7 +471,7 @@ export const CONNECTORS = [
     id: "backup",
     name: "Backup system",
     desc: "Retention health, restore coverage, and whether your backups would actually restore.",
-    state: "planned",
+    state: "available",
     type: "Backups",
   },
   {

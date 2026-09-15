@@ -2526,3 +2526,232 @@ body.demo-body {
   margin-left: auto;
   flex: none;
 }
+
+/* ============================================================
+   Backup register (Phase 4)
+   ============================================================ */
+
+.bk-register {
+  margin-top: 0.8rem;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  padding: 0.85rem;
+}
+
+.bk-register-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.bk-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bk-row {
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-md);
+  padding: 0.7rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  background: var(--surface-1);
+}
+
+.bk-row.is-issue {
+  border-color: rgba(148, 180, 225, 0.14);
+}
+
+.bk-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.bk-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bk, var(--slate));
+  flex: none;
+}
+
+.bk-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bk-id b {
+  font-size: 0.9rem;
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+
+.bk-hero .sev {
+  margin-left: auto;
+}
+
+.bk-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1.1rem;
+  font-size: 0.74rem;
+  color: var(--text-3);
+}
+
+.bk-bi {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.bk-bi b {
+  color: var(--text-2);
+  font-weight: 550;
+}
+
+.bk-edit {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  color: var(--teal);
+  font-size: 0.72rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.bk-edit:hover {
+  text-decoration: underline;
+}
+
+.bk-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-deep);
+}
+
+.bk-editor-label {
+  font-size: 0.76rem;
+  color: var(--text-2);
+  font-weight: 550;
+}
+
+.bk-input {
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  padding: 0.42rem 0.55rem;
+  font-size: 0.82rem;
+  color: var(--text-1);
+  font-family: inherit;
+}
+
+.bk-input:focus {
+  outline: none;
+  border-color: rgba(42, 230, 199, 0.6);
+  box-shadow: 0 0 0 3px rgba(42, 230, 199, 0.12);
+}
+
+.bk-input[type="number"] {
+  width: 5.2rem;
+}
+
+.bk-select {
+  width: 7.2rem;
+}
+
+.bk-editor-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.bk-editor-hint {
+  width: 100%;
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--text-disabled);
+  line-height: 1.4;
+}
+
+.bk-issue {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+.bk-issue summary {
+  cursor: pointer;
+  color: var(--text-2);
+  font-weight: 500;
+  list-style: none;
+  position: relative;
+  padding-left: 1.15rem;
+  user-select: none;
+}
+
+.bk-issue summary::-webkit-details-marker {
+  display: none;
+}
+
+.bk-issue summary::before {
+  content: "▸";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--amber);
+  transition: transform var(--dur) var(--ease-out);
+  font-size: 0.8rem;
+}
+
+.bk-issue[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.bk-issue p {
+  margin: 0.35rem 0 0 1.15rem;
+}
+
+.bk-issue b {
+  color: var(--text-2);
+  font-weight: 550;
+}
+
+.bk-issue-link {
+  margin-left: 1.15rem;
+}
+
+@media (max-width: 720px) {
+  .bk-bi {
+    white-space: normal;
+  }
+
+  .bk-hero .sev {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bk-row {
+    transition: none;
+  }
+}

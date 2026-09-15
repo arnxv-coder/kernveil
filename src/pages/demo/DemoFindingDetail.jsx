@@ -40,7 +40,11 @@ export default function DemoFindingDetail() {
         ? f.demo
           ? `Bundled sample fixture — ${f.fixture ? `"${f.fixture}" gave this finding ` : ""}from Kernveil's built-in demo dataset. No scan file was involved.`
           : `Imported scan data — this finding came from the fixture ${f.fixture ? `"${f.fixture}" ` : ""}you uploaded. No live cloud account is connected; the evidence below is from the file.`
-        : "Demo finding — fictional sample data for illustration.";
+        : f && f.source === "backup-fixture"
+          ? f.demo
+            ? `Bundled backup sample — ${f.system ? `"${f.system}" ` : ""}is a simulated backup record. No backup system was actually contacted.`
+            : `Imported backup data — this finding came from the register you uploaded. No live backup tool is connected; the evidence below is from the file.`
+          : "Demo finding — fictional sample data for illustration.";
 
   const changeStatus = (status, note) => {
     setFindingStatus(id, status, note);

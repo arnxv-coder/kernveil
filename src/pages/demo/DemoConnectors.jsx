@@ -16,6 +16,7 @@ import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 import { scanRepository, buildDemoScan } from "../../lib/githubScan.js";
 import { analyzeDemoFixture } from "../../lib/cloudFixture.js";
 import { analyzeDemoSite, analyzeHostScan, normalizeHost } from "../../lib/websiteScan.js";
+import { buildDemoBackupResult, buildBackupRecord } from "../../lib/backupScan.js";
 import {
   CONN_STATE_META,
   SOURCE_SCOPES,
@@ -152,11 +153,12 @@ function SyncBlock({ source, record, id, lastId }) {
 export default function DemoConnectors() {
   const rootRef = useRef(null);
   const REDUCED = reducedMotion();
-  const { connectors, findings, putConnector, removeConnector, noteConnectorFailure, cloudScans, putCloudScan, removeCloudScan, webScans, putWebScan, removeWebScan } = useWorkspace();
+  const { connectors, findings, putConnector, removeConnector, noteConnectorFailure, cloudScans, putCloudScan, removeCloudScan, webScans, putWebScan, removeWebScan, backupScans, putBackupScan, removeBackupScan } = useWorkspace();
 
   const gh = connectors.find((c) => c.kind === "github");
   const cloud = cloudScans[0];
   const web = webScans[0];
+  const backup = backupScans[0];
 
   /* --- github local state --- */
   const [repoInput, setRepoInput] = useState("");
@@ -179,6 +181,12 @@ export default function DemoConnectors() {
   const [webUrl, setWebUrl] = useState("");
   const webCancelRef = useRef(false);
 
+  /* --- backup local state (connector-page mirror of /demo-backups) --- */
+  const [bkPhase, setBkPhase] = useState("idle"); // idle | importing
+  const [bkProgress, setBkProgress] = useState("");
+  const [bkError, setBkError] = useState(null);
+  const bkCancelRef = useRef(false);
+
   const ghFindings = useMemo(
     () => (gh ? findings.filter((f) => f.related && f.related[0] === (gh.asset ? gh.asset.id : gh.id)) : []),
     [findings, gh]
@@ -196,6 +204,13 @@ export default function DemoConnectors() {
     [web, findings]
   );
   const openOnWeb = webFindings.filter((f) => f.status !== "completed").length;
+
+  const backupFindings = useMemo(
+    () => (backup ? findings.filter((f) => f.source === "backup-fixture" && backup.assets.some((a) => a.id === f.asset)) : []),
+    [backup, findings]
+  );
+  const openOnBk = backupFindings.filter((f) => f.status !== "completed").length;
+  const backupProtected = backup ? backup.systems.filter((s) => s.state === "healthy").length : 0;
 
   useEffect(() => {
     const root = rootRef.current;
@@ -216,7 +231,7 @@ export default function DemoConnectors() {
     return () => ctx.revert();
   }, [rootRef, REDUCED]);
 
-  useEffect(() => () => { cancelRef.current = true; cloudCancelRef.current = true; webCancelRef.current = true; }, []);
+  useEffect(() => () => { cancelRef.current = true; cloudCancelRef.current = true; webCancelRef.current = true; bkCancelRef.current = true; }, []);
 
   /* ---------- GitHub flows ---------- */
 
@@ -391,10 +406,39 @@ export default function DemoConnectors() {
     putWebScan(websiteRecordFrom(analyzeHostScan(web.host), "scan"));
   };
 
+  /* ---------- Backup flows (connector-page mirror) ---------- */
+
+  const bkRunDemo = async () => {
+    bkCancelRef.current = false;
+    setBkError(null);
+    setBkPhase("importing");
+    setBkProgress("Reading bundled backup register…");
+    await delay(480);
+    if (bkCancelRef.current) return;
+    setBkProgress("Checking retention schedules and restore coverage…");
+    await delay(950);
+    if (bkCancelRef.current) return;
+    setBkProgress("Assembling findings…");
+    await delay(460);
+    if (bkCancelRef.current) return;
+    putBackupScan(buildBackupRecord(buildDemoBackupResult(), "demo"));
+    setBkPhase("idle");
+  };
+
+  const bkRescan = () => {
+    if (!backup) return;
+    if (backup.mode === "demo") {
+      bkRunDemo();
+      return;
+    }
+    setBkError("This register was imported on the Backup checks page — open it there to reconsider the same file.");
+  };
+
   const githubMeta = CONNECTORS.find((c) => c.id === "github");
   const ghState = connStatusFor({ record: gh, busy: phase !== "idle", openCount: openOnGh });
   const cloudConnState = connStatusFor({ record: cloud, busy: cloudPhase !== "idle", openCount: openOnCloud });
   const webConnState = connStatusFor({ record: web, busy: webPhase !== "idle", openCount: openOnWeb });
+  const bkConnState = connStatusFor({ record: backup, busy: bkPhase !== "idle", openCount: openOnBk });
 
   return (
     <div ref={rootRef}>
@@ -402,7 +446,8 @@ export default function DemoConnectors() {
         <h1 className="page-title">Connectors</h1>
         <p className="page-sub">
           The systems Kernveil is designed to understand, each with the scopes it reads and a sync trail. Only the
-          GitHub connector is live in this preview — everything else is clearly labelled simulated sample data.
+          GitHub connector is live in this preview — cloud fixtures, website evaluations, and backup registers are
+          clearly labelled simulated sample data.
         </p>
       </header>
 
@@ -825,6 +870,128 @@ export default function DemoConnectors() {
           <SyncBlock source="website" record={web} id="websiteSync" lastId="websiteLastSync" />
         </article>
 
+        {/* ---------- Backup system (simulated connector) ---------- */}
+        <article className="conn-card" data-conn id="bkCard">
+          <div className="conn-head">
+            <span className="conn-icon" aria-hidden="true">{CONN_ICONS.backup || ""}</span>
+            <div>
+              <span className="conn-name">Backup system</span>
+              <span className="badge badge-ghost" style={{ fontSize: "0.66rem", marginTop: "0.25rem" }}>Backups</span>
+            </div>
+          </div>
+          <p className="conn-desc">Retention health, restore coverage, and whether your backups would actually restore.</p>
+
+          {bkPhase !== "idle" ? (
+            /* ---------- importing / progress ---------- */
+            <div className="scan-progress" id="bkProgress" role="status" aria-live="polite">
+              <span className="scan-spinner" aria-hidden="true"></span>
+              <span className="scan-label">{bkProgress}</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { bkCancelRef.current = true; setBkPhase("idle"); setBkProgress(""); }}>
+                Cancel
+              </button>
+              <p className="conn-scan-note">
+                No backup tool is contacted — the register is read entirely in this browser.
+              </p>
+            </div>
+          ) : backup ? (
+            /* ---------- connected / success ---------- */
+            <div className="conn-connected" id="bkConnected" data-state={backup.state}>
+              <div className="conn-status-line">
+                <span className="status-dot" style={{ background: CONN_STATE_META[bkConnState].dot }}></span>
+                <span>{backup.mode === "demo" ? "Bundled sample register · nothing was uploaded" : `Imported from "${backup.name}"`}</span>
+                <StateBadges meta={CONN_STATE_META[bkConnState]} state={backup.state} />
+              </div>
+
+              {backup.state === "healthy" && (
+                <div className="conn-healthy" id="bkHealthy">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="M8.5 12.5l2.3 2.3 4.7-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <div>
+                    <b>Every system is protected.</b>
+                    <span>All {backup.records} systems have a restorable point inside their expected window.</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="conn-metrics">
+                <span><b>{backup.records}</b>systems</span>
+                <span><b>{openOnBk}</b>active findings</span>
+                <span><b>{backupProtected}</b>fully protected</span>
+              </div>
+
+              <p className="conn-note" style={{ marginTop: "0.6rem" }}>
+                <span className="badge badge-ghost" style={{ fontSize: "0.66rem", marginRight: "0.5rem" }}>
+                  {dataLabel("backup", backup)}
+                </span>
+                {backup.mode === "demo"
+                  ? "Bundled sample — Kernveil generated this register from a built-in dataset (no backup tool)."
+                  : "File parsed in this browser — no backup tool is connected or billed."}
+                {backup.warnings.map((w, i) => (
+                  <span key={i} style={{ display: "block", color: w.includes("protected") ? "var(--teal)" : "var(--amber)", marginTop: "0.35rem" }}>{w}</span>
+                ))}
+              </p>
+
+              {bkError && (
+                <div className="conn-error" id="bkError" role="alert">
+                  <b>Scan failed</b>
+                  <span>{bkError}</span>
+                  <span className="conn-error-actions">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBkError(null)}>Dismiss</button>
+                  </span>
+                </div>
+              )}
+
+              <div className="conn-actions" style={{ marginTop: "0.9rem" }}>
+                <Link className="btn btn-secondary btn-sm" to="/demo-backups">
+                  View backup health
+                  <svg className="ic ic-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: 14, height: 14 }}>
+                    <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+                <span style={{ display: "inline-flex", gap: "0.5rem" }}>
+                  <button type="button" className="btn btn-ghost btn-sm" id="bkRescan" onClick={bkRescan} disabled={bkPhase !== "idle"}>Rescan</button>
+                  <button type="button" className="btn btn-ghost btn-sm conn-disconnect" id="bkRemove" onClick={() => removeBackupScan(backup.id)}>Remove</button>
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* ---------- empty / not connected ---------- */
+            <div id="bkEmpty">
+              <div className="conn-status-line">
+                <span className="status-dot" style={{ background: CONN_STATE_META.disconnected.dot }}></span>
+                <span>Not connected — no backup register loaded.</span>
+                <span className="badge badge-slate" style={{ marginLeft: "auto" }}>{CONN_STATE_META.disconnected.label}</span>
+              </div>
+              <div className="conn-actions" style={{ marginTop: "0.9rem", justifyContent: "flex-start" }}>
+                <Link className="btn btn-secondary btn-sm" to="/demo-backups">
+                  Set up backup checks
+                  <svg className="ic ic-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: 14, height: 14 }}>
+                    <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+                <button type="button" className="btn btn-ghost btn-sm" id="bkDemo" onClick={bkRunDemo}>
+                  No register handy? Load the bundled sample
+                </button>
+              </div>
+
+              {bkError && (
+                <div className="conn-error" id="bkError" role="alert">
+                  <b>Could not load a register</b>
+                  <span>{bkError}</span>
+                  <span className="conn-error-actions">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBkError(null)}>Dismiss</button>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <ScopesBlock source="backup" id="backupScopes" />
+          <SyncBlock source="backup" record={backup} id="backupSync" lastId="backupLastSync" />
+        </article>
+
         {/* ---------- Planned / coming soon ---------- */}
         {CONNECTORS.filter((c) => c.state !== "available").map((c) => {
           const meta = CONN_STATE_META[c.state];
@@ -864,7 +1031,7 @@ export default function DemoConnectors() {
 
       <p className="result-count" style={{ marginTop: "1.6rem", textAlign: "center" }} id="connectorsNote">
         {gh
-          ? `GitHub connector is real — ${gh.name} was ${gh.mode === "demo" ? "simulated (no repository was actually scanned)" : "scanned over the GitHub raw API"}. All other connector data on this page is fictional sample data.`
+          ? `GitHub connector is real — ${gh.name} was ${gh.mode === "demo" ? "simulated (no repository was actually scanned)" : "scanned over the GitHub raw API"}. All other connector data on this page is fictional sample data — no cloud account, website, or backup tool is actually connected.`
           : "Only the GitHub connector is functional in this preview. All other connector data is simulated; nothing else is actually connected."}
       </p>
     </div>

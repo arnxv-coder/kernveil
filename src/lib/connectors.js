@@ -119,6 +119,11 @@ export function syncNoteOf(record) {
       ? `${record.records} checks · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"}`
       : `Clean bill — ${record.records} checks passed`;
   }
+  if (record.kind === "backup") {
+    return record.findings && record.findings.length
+      ? `${record.records} systems · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"}`
+      : `All ${record.records} systems protected`;
+  }
   return "Scan complete";
 }
 

@@ -26,6 +26,7 @@ function sourceOf(f) {
   if (f.source === "github-connector") return "github";
   if (f.source === "cloud-fixture") return "cloud";
   if (f.source === "website-fixture") return "website";
+  if (f.source === "backup-fixture") return "backup";
   return "sample";
 }
 
@@ -33,6 +34,7 @@ const SRC_META = {
   github: { label: "GitHub", dot: "var(--slate)" },
   cloud: { label: "Cloud", dot: "var(--teal)" },
   website: { label: "Website", dot: "var(--cyan)" },
+  backup: { label: "Backup", dot: "var(--green)" },
   sample: { label: "Sample", dot: "var(--amber)" },
 };
 
@@ -203,7 +205,7 @@ export default function DemoOverview() {
   const rootRef = useRef(null);
   const queueRef = useRef(null);
   useDashboardFx(rootRef);
-  const { findings: allFindings, assets, overview: o, activity, connectors, cloudScans, webScans } = useWorkspace();
+  const { findings: allFindings, assets, overview: o, activity, connectors, cloudScans, webScans, backupScans } = useWorkspace();
 
   const [term, setTerm] = useState("");
   const [sev, setSev] = useState("all");
@@ -233,7 +235,7 @@ export default function DemoOverview() {
   const rowsKey = rows.map((f) => f.id).join(",");
 
   const srcCounts = useMemo(() => {
-    const c = { github: 0, cloud: 0, website: 0, sample: 0 };
+    const c = { github: 0, cloud: 0, website: 0, backup: 0, sample: 0 };
     for (const f of allFindings) c[sourceOf(f)] += 1;
     return c;
   }, [allFindings]);
@@ -266,6 +268,7 @@ export default function DemoOverview() {
     const gh = connectors.find((c) => c.kind === "github");
     const cloud = cloudScans[0];
     const web = webScans[0];
+    const backup = backupScans[0];
     const websiteSample = { kind: "website", mode: "sample", lastScanAt: Date.now() - 62 * 60e3 };
     return [
       {
@@ -289,11 +292,17 @@ export default function DemoOverview() {
         last: lastSyncText(web || websiteSample),
         open: web ? openForSource("website") : 2,
       },
+      {
+        id: "backup",
+        name: "Backup system",
+        status: connStatusFor({ record: backup, openCount: openForSource("backup") }),
+        last: lastSyncText(backup),
+        open: openForSource("backup"),
+      },
       { id: "identity", name: "Identity provider", status: "planned", last: "—", open: 0 },
-      { id: "backup", name: "Backup system", status: "planned", last: "—", open: 0 },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allFindings, connectors, cloudScans, webScans]);
+  }, [allFindings, connectors, cloudScans, webScans, backupScans]);
 
   /* Remediation progress — count per workflow status, plus actions that
      have been sitting unresolved longer than a week. */
@@ -343,13 +352,13 @@ export default function DemoOverview() {
 
   const anyFindings = allFindings.length > 0;
 
-  const sources = ["all", "github", "cloud", "website", "sample"];
+  const sources = ["all", "github", "cloud", "website", "backup", "sample"];
 
   return (
     <div ref={rootRef}>
       <header className="page-head">
         <h1 className="page-title">Overview</h1>
-        <p className="page-sub">Every finding across GitHub, cloud, and your websites, prioritized by what matters most — at a glance.</p>
+        <p className="page-sub">Every finding across GitHub, cloud, your websites, and backup health, prioritized by what matters most — at a glance.</p>
       </header>
 
       {!anyFindings ? (

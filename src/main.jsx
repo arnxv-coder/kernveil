@@ -19,6 +19,7 @@ import DemoFindings from "./pages/demo/DemoFindings.jsx";
 import DemoConnectors from "./pages/demo/DemoConnectors.jsx";
 import DemoCloudChecks from "./pages/demo/DemoCloudChecks.jsx";
 import DemoWebsiteChecks from "./pages/demo/DemoWebsiteChecks.jsx";
+import DemoBackups from "./pages/demo/DemoBackups.jsx";
 import DemoFindingDetail from "./pages/demo/DemoFindingDetail.jsx";
 
 function BodyClass() {
@@ -45,6 +46,7 @@ function App() {
           <Route path="/demo-connectors" element={<DemoLayout page="connectors"><DemoConnectors /></DemoLayout>} />
           <Route path="/demo-cloud" element={<DemoLayout page="cloud"><DemoCloudChecks /></DemoLayout>} />
           <Route path="/demo-website" element={<DemoLayout page="website"><DemoWebsiteChecks /></DemoLayout>} />
+          <Route path="/demo-backups" element={<DemoLayout page="backup"><DemoBackups /></DemoLayout>} />
           <Route path="/demo-finding" element={<DemoLayout page="finding-detail"><DemoFindingDetail /></DemoLayout>} />
           <Route path="*" element={<MarketingPage />} />
         </Routes>

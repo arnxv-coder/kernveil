@@ -7,7 +7,7 @@ import { BrandMark } from "../../components/Icons.jsx";
 import { useWorkspace, initialsOf } from "../../context/WorkspaceContext.jsx";
 
 export default function DemoLayout({ page, children }) {
-  const { workspace, overview, resetWorkspace, assets, cloudOpen, webOpen } = useWorkspace();
+  const { workspace, overview, resetWorkspace, assets, cloudOpen, webOpen, backupOpen } = useWorkspace();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -80,6 +80,19 @@ export default function DemoLayout({ page, children }) {
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" />
           <path d="M3.5 12h17M12 3.5c2 2.4 3 5.3 3 8.5s-1 6.1-3 8.5c-2-2.4-3-5.3-3-8.5s1-6.1 3-8.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      page: "backup",
+      to: "/demo-backups",
+      label: "Backup health",
+      count: backupOpen || null,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <ellipse cx="12" cy="5.5" rx="7" ry="2.7" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M5 5.5v13c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7v-13" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M5 12c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7" stroke="currentColor" strokeWidth="1.6" />
         </svg>
       ),
     },

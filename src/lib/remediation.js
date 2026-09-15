@@ -162,11 +162,46 @@ function genericDraft(f) {
   };
 }
 
+function backupChange(f) {
+  const ev = Object.fromEntries((f.evidence || []).map((e) => [e.key, e.value]));
+  const sys = f.system || f.asset || "the system";
+  const rule = f.rule || "no-data";
+  const plans = {
+    failed: {
+      title: `Restore-test and re-run the backup for ${sys}`,
+      after: ["Read the recorded failure and fix the job", "Restore-test the latest good point", "Re-run the backup and confirm it clears"],
+    },
+    missing: {
+      title: `Get a first successful backup landed for ${sys}`,
+      after: ["Create the backup job honoring the expected schedule", "Run a first backup", "Restore-test it before relying on it"],
+    },
+    stale: {
+      title: `Catch the missed backup up for ${sys}`,
+      after: ["Run the pending backup now", "Restore-test the latest good point", "Confirm the next expected backup lands on time"],
+    },
+    "no-data": {
+      title: `Set up backup coverage for ${sys}`,
+      after: ["Attach a backup schedule", "Run a first backup and restore-test it", "Confirm the next expected backup lands on time"],
+    },
+  };
+  const t = plans[rule] || plans["no-data"];
+  return {
+    kind: "config-change",
+    glow: "Backup fix draft",
+    title: t.title,
+    resource: sys,
+    before: evEntries(f.evidence),
+    after: t.after,
+    target: sys,
+  };
+}
+
 export function remediationOf(f) {
   if (!f) return null;
   if (f.source === "github-connector") return githubDraft(f);
   if (f.source === "cloud-fixture") return cloudChange(f);
   if (f.source === "website-fixture") return websiteChange(f);
+  if (f.source === "backup-fixture") return backupChange(f);
   return genericDraft(f);
 }
 

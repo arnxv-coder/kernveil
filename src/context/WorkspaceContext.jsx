@@ -9,6 +9,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { ASSETS, FINDINGS, WORKSPACE, OVERVIEW } from "../lib/data.js";
 import { appendSync, syncEntryFor } from "../lib/connectors.js";
 import { normalizeStatus, STATUS_LABEL, STATUS_GROUP } from "../lib/remediation.js";
+import { analyzeBackupSystems } from "../lib/backupScan.js";
 
 export const WORKSPACE_KEY = "kernveil.workspace.v1";
 export const FINDING_STATE_KEY = "kernveil.findingState.v1";
@@ -16,6 +17,7 @@ export const FINDING_ACTIONS_KEY = "kernveil.findingActions.v1";
 export const CONNECTORS_KEY = "kernveil.connectors.v1";
 export const CLOUD_KEY = "kernveil.cloudScans.v1";
 export const WEBSITE_KEY = "kernveil.websiteScans.v1";
+export const BACKUP_KEY = "kernveil.backupScans.v1";
 
 const SEV_WEIGHT = { critical: 12, high: 8, medium: 5, low: 3 };
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -127,6 +129,7 @@ export function WorkspaceProvider({ children }) {
   const [connectors, setConnectors] = useState(() => loadJSON(CONNECTORS_KEY, []));
   const [cloudScans, setCloudScans] = useState(() => loadJSON(CLOUD_KEY, []));
   const [webScans, setWebScans] = useState(() => loadJSON(WEBSITE_KEY, []));
+  const [backupScans, setBackupScans] = useState(() => loadJSON(BACKUP_KEY, []));
 
   useEffect(() => saveJSON(WORKSPACE_KEY, workspace), [workspace]);
   useEffect(() => saveJSON(FINDING_STATE_KEY, stateMap), [stateMap]);
@@ -134,6 +137,7 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => saveJSON(CONNECTORS_KEY, connectors), [connectors]);
   useEffect(() => saveJSON(CLOUD_KEY, cloudScans), [cloudScans]);
   useEffect(() => saveJSON(WEBSITE_KEY, webScans), [webScans]);
+  useEffect(() => saveJSON(BACKUP_KEY, backupScans), [backupScans]);
 
   const createWorkspace = useCallback((name) => {
     const ts = Date.now();
@@ -147,6 +151,7 @@ export function WorkspaceProvider({ children }) {
     setConnectors([]);
     setCloudScans([]);
     setWebScans([]);
+    setBackupScans([]);
   }, []);
 
   const resetWorkspace = useCallback(() => {
@@ -156,6 +161,7 @@ export function WorkspaceProvider({ children }) {
     setConnectors([]);
     setCloudScans([]);
     setWebScans([]);
+    setBackupScans([]);
   }, []);
 
   const setFindingStatus = useCallback((id, status, note) => {
@@ -231,6 +237,53 @@ export function WorkspaceProvider({ children }) {
     ]);
   }, []);
 
+  const putBackupScan = useCallback((record) => {
+    setBackupScans((prev) => {
+      const prevRec = prev.find((c) => c.id === record.id);
+      const next = {
+        ...record,
+        lastError: undefined,
+        syncs: appendSync(prevRec && prevRec.syncs, syncEntryFor(record)),
+      };
+      return [...prev.filter((c) => c.id !== record.id), next];
+    });
+    setActions((prev) => [
+      ...prev,
+      {
+        id: `ev-${Date.now()}-${record.id}`,
+        kind: "connector",
+        text: `Backup review ${record.name} — ${record.mode === "demo" ? "bundled sample" : "fixture imported"} · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"} across ${record.records} systems`,
+        at: Date.now(),
+      },
+    ]);
+  }, []);
+
+  const updateBackupSchedule = useCallback((id, systemId, schedule) => {
+    setBackupScans((prev) =>
+      prev.map((rec) => {
+        if (rec.id !== id) return rec;
+        const raw = rec.rawSystems.map((s) => (s.id === systemId ? { ...s, schedule } : s));
+        const derived = analyzeBackupSystems(raw, rec.mode, {
+          account: rec.account,
+          name: rec.name,
+        });
+        return {
+          ...rec,
+          rawSystems: raw,
+          systems: derived.systems,
+          findings: derived.findings,
+          assets: derived.assets,
+          records: derived.records,
+          clean: derived.findings.length === 0,
+          state: derived.findings.length ? "findings" : "healthy",
+          warnings: derived.warnings,
+          skipped: derived.skipped,
+          lastScanAt: Date.now(),
+        };
+      })
+    );
+  }, []);
+
   const noteConnectorFailure = useCallback((id, message) => {
     const at = Date.now();
     const failEntry = { at, ok: false, note: message, mode: "live" };
@@ -243,6 +296,7 @@ export function WorkspaceProvider({ children }) {
     setConnectors(patch);
     setCloudScans(patch);
     setWebScans(patch);
+    setBackupScans(patch);
   }, []);
 
   const removeCloudScan = useCallback((id) => {
@@ -253,13 +307,18 @@ export function WorkspaceProvider({ children }) {
     setWebScans((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
+  const removeBackupScan = useCallback((id) => {
+    setBackupScans((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
   const value = useMemo(() => {
     /* Findings imported from connected repositories, cloud fixtures,
-       and website scans. */
+       website scans, and backup registers. */
     const customRecords = [
       ...connectors.flatMap((c) => c.findings || []),
       ...cloudScans.flatMap((c) => c.findings || []),
       ...webScans.flatMap((c) => c.findings || []),
+      ...backupScans.flatMap((c) => c.findings || []),
     ];
 
     /* Live findings: seed data + imported scan findings, each with
@@ -322,6 +381,7 @@ export function WorkspaceProvider({ children }) {
       ...connectors.map((c) => c.asset).filter(Boolean),
       ...cloudScans.flatMap((c) => c.assets || []),
       ...webScans.flatMap((c) => c.assets || []),
+      ...backupScans.flatMap((c) => c.assets || []),
     ].filter((a, i, arr) => arr.findIndex((x) => x.id === a.id) === i);
     const resolved = BASE.resolved + (live.resolved - SEED.byGrp.resolved);
 
@@ -366,6 +426,13 @@ export function WorkspaceProvider({ children }) {
         return status !== "completed";
       }).length;
 
+    const backupOpen = backupScans
+      .flatMap((c) => c.findings || [])
+      .filter((f) => {
+        const status = normalizeStatus(stateMap[f.id] ? stateMap[f.id].status : f.status);
+        return status !== "completed";
+      }).length;
+
     return {
       workspace,
       findings,
@@ -373,8 +440,10 @@ export function WorkspaceProvider({ children }) {
       connectors,
       cloudScans,
       webScans,
+      backupScans,
       cloudOpen,
       webOpen,
+      backupOpen,
       overview,
       activity,
       setFindingStatus,
@@ -384,11 +453,14 @@ export function WorkspaceProvider({ children }) {
       removeCloudScan,
       putWebScan,
       removeWebScan,
+      putBackupScan,
+      removeBackupScan,
+      updateBackupSchedule,
       noteConnectorFailure,
       createWorkspace,
       resetWorkspace,
     };
-  }, [workspace, stateMap, actions, connectors, cloudScans, webScans, setFindingStatus, putConnector, removeConnector, putCloudScan, removeCloudScan, putWebScan, removeWebScan, noteConnectorFailure, createWorkspace, resetWorkspace]);
+  }, [workspace, stateMap, actions, connectors, cloudScans, webScans, backupScans, setFindingStatus, putConnector, removeConnector, putCloudScan, removeCloudScan, putWebScan, removeWebScan, putBackupScan, removeBackupScan, updateBackupSchedule, noteConnectorFailure, createWorkspace, resetWorkspace]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
