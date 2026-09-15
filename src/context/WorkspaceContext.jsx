@@ -7,6 +7,7 @@
    ============================================================ */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ASSETS, FINDINGS, WORKSPACE, OVERVIEW } from "../lib/data.js";
+import { appendSync, syncEntryFor } from "../lib/connectors.js";
 
 export const WORKSPACE_KEY = "kernveil.workspace.v1";
 export const FINDING_STATE_KEY = "kernveil.findingState.v1";
@@ -144,13 +145,21 @@ export function WorkspaceProvider({ children }) {
   }, []);
 
   const putConnector = useCallback((record) => {
-    setConnectors((prev) => [...prev.filter((c) => c.id !== record.id), record]);
+    setConnectors((prev) => {
+      const prevRec = prev.find((c) => c.id === record.id);
+      const next = {
+        ...record,
+        lastError: undefined,
+        syncs: appendSync(prevRec && prevRec.syncs, syncEntryFor(record)),
+      };
+      return [...prev.filter((c) => c.id !== record.id), next];
+    });
     setActions((prev) => [
       ...prev,
       {
         id: `ev-${Date.now()}-${record.id}`,
         kind: "connector",
-        text: `Repository ${record.repo} — ${record.mode === "demo" ? "demo" : "dependency"} scan complete · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"}`,
+        text: `Repository ${record.name || record.repo} — ${record.mode === "demo" ? "demo" : "dependency"} scan complete · ${record.findings.length} finding${record.findings.length === 1 ? "" : "s"}`,
         at: Date.now(),
       },
     ]);
@@ -161,7 +170,15 @@ export function WorkspaceProvider({ children }) {
   }, []);
 
   const putCloudScan = useCallback((record) => {
-    setCloudScans((prev) => [...prev.filter((c) => c.id !== record.id), record]);
+    setCloudScans((prev) => {
+      const prevRec = prev.find((c) => c.id === record.id);
+      const next = {
+        ...record,
+        lastError: undefined,
+        syncs: appendSync(prevRec && prevRec.syncs, syncEntryFor(record)),
+      };
+      return [...prev.filter((c) => c.id !== record.id), next];
+    });
     setActions((prev) => [
       ...prev,
       {
@@ -171,6 +188,19 @@ export function WorkspaceProvider({ children }) {
         at: Date.now(),
       },
     ]);
+  }, []);
+
+  const noteConnectorFailure = useCallback((id, message) => {
+    const at = Date.now();
+    const failEntry = { at, ok: false, note: message, mode: "live" };
+    const patch = (prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? { ...c, lastError: message, syncs: appendSync(c.syncs, failEntry) }
+          : c
+      );
+    setConnectors(patch);
+    setCloudScans(patch);
   }, []);
 
   const removeCloudScan = useCallback((id) => {
@@ -289,10 +319,11 @@ export function WorkspaceProvider({ children }) {
       removeConnector,
       putCloudScan,
       removeCloudScan,
+      noteConnectorFailure,
       createWorkspace,
       resetWorkspace,
     };
-  }, [workspace, stateMap, actions, connectors, cloudScans, setFindingStatus, putConnector, removeConnector, putCloudScan, removeCloudScan, createWorkspace, resetWorkspace]);
+  }, [workspace, stateMap, actions, connectors, cloudScans, setFindingStatus, putConnector, removeConnector, putCloudScan, removeCloudScan, noteConnectorFailure, createWorkspace, resetWorkspace]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

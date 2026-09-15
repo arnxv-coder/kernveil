@@ -2170,3 +2170,190 @@ body.demo-body {
   gap: 0.65rem;
   margin-top: 1rem;
 }
+
+/* ============================================================
+   Connectors — scopes, last sync, sync history
+   ============================================================ */
+
+.conn-scopes {
+  margin-top: 0.95rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-faint);
+}
+
+.scopes-label {
+  display: block;
+  font-size: 0.66rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 0.55rem;
+}
+
+.scopes-list {
+  display: grid;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.scopes-list li {
+  display: flex;
+  gap: 0.55rem;
+  font-size: 0.78rem;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+
+.scopes-list li::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--teal);
+  opacity: 0.8;
+  margin-top: 0.34rem;
+  flex-shrink: 0;
+}
+
+.conn-sync {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-faint);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.conn-sync-line {
+  font-size: 0.78rem;
+  color: var(--text-3);
+}
+
+.conn-sync-line b {
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.sync-history {
+  font-size: 0.78rem;
+}
+
+.sync-history summary {
+  cursor: pointer;
+  color: var(--text-2);
+  font-weight: 500;
+  list-style: none;
+  position: relative;
+  padding-left: 1.15rem;
+  user-select: none;
+}
+
+.sync-history summary::-webkit-details-marker {
+  display: none;
+}
+
+.sync-history summary::before {
+  content: "▸";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--teal);
+  transition: transform var(--dur) var(--ease-out);
+  font-size: 0.8rem;
+}
+
+.sync-history[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.sync-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sync-list li {
+  display: grid;
+  grid-template-columns: 10px 5.2rem 1fr;
+  align-items: start;
+  gap: 0.5rem;
+  font-size: 0.74rem;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.sync-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sync-c, var(--slate));
+  margin-top: 0.3rem;
+}
+
+.sync-time {
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.sync-note {
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   Connector health (Overview)
+   ============================================================ */
+
+.health-panel {
+  margin-top: 1.2rem;
+}
+
+.health-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+
+.health-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+}
+
+.conn-icon-sm {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+}
+
+.health-name {
+  font-weight: 550;
+  color: var(--text-1);
+  font-size: 0.88rem;
+}
+
+.health-meta {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.health-last,
+.health-open {
+  font-size: 0.72rem;
+  color: var(--text-3);
+}
+
+.health-open {
+  color: var(--text-2);
+}

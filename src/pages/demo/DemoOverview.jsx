@@ -8,9 +8,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { animate } from "motion";
-import { gsap, reducedMotion, SEV_RANK } from "../../lib/anim.jsx";
+import { gsap, reducedMotion, SEV_RANK, CONN_ICONS } from "../../lib/anim.jsx";
 import { RISK_SERIES } from "../../lib/data.js";
 import { severityPill, statusBadge } from "../../components/demo/badges.jsx";
+import { CONN_STATE_META, connStatusFor, lastSyncText } from "../../lib/connectors.js";
 import { useDashboardFx } from "../../hooks/useDashboardFx.js";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
@@ -199,7 +200,7 @@ export default function DemoOverview() {
   const rootRef = useRef(null);
   const queueRef = useRef(null);
   useDashboardFx(rootRef);
-  const { findings: allFindings, assets, overview: o, activity } = useWorkspace();
+  const { findings: allFindings, assets, overview: o, activity, connectors, cloudScans } = useWorkspace();
 
   const [term, setTerm] = useState("");
   const [sev, setSev] = useState("all");
@@ -254,6 +255,41 @@ export default function DemoOverview() {
   const isGlobalTopOnList = !!(topOpen && rows[0] && topOpen.id === rows[0].id);
 
   const openCount = allFindings.filter((f) => f.status !== "resolved").length;
+
+  const openForSource = (s) =>
+    allFindings.reduce((n, f) => (sourceOf(f) === s && f.status !== "resolved" ? n + 1 : n), 0);
+
+  const healthRows = useMemo(() => {
+    const gh = connectors.find((c) => c.kind === "github");
+    const cloud = cloudScans[0];
+    const websiteSample = { kind: "website", mode: "sample", lastScanAt: Date.now() - 62 * 60e3 };
+    return [
+      {
+        id: "github",
+        name: "GitHub",
+        status: connStatusFor({ record: gh, openCount: openForSource("github") }),
+        last: lastSyncText(gh),
+        open: openForSource("github"),
+      },
+      {
+        id: "cloud",
+        name: "Cloud environment",
+        status: connStatusFor({ record: cloud, openCount: openForSource("cloud") }),
+        last: lastSyncText(cloud),
+        open: openForSource("cloud"),
+      },
+      {
+        id: "website",
+        name: "Website",
+        status: connStatusFor({ record: websiteSample, openCount: 2 }),
+        last: lastSyncText(websiteSample),
+        open: 2,
+      },
+      { id: "identity", name: "Identity provider", status: "planned", last: "—", open: 0 },
+      { id: "backup", name: "Backup system", status: "planned", last: "—", open: 0 },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allFindings, connectors, cloudScans]);
 
   useEffect(() => {
     const list = queueRef.current;
@@ -593,6 +629,26 @@ export default function DemoOverview() {
             ) : (
               <p className="remed-note">Nothing needs your attention right now.</p>
             )}
+          </section>
+
+          <section className="panel health-panel" id="connectorHealth">
+            <span className="panel-label">Connector health</span>
+            <div className="health-list">
+              {healthRows.map((row) => {
+                const meta = CONN_STATE_META[row.status];
+                return (
+                  <div className="health-row" key={row.id}>
+                    <span className="conn-icon conn-icon-sm" aria-hidden="true">{CONN_ICONS[row.id] || ""}</span>
+                    <span className="health-name">{row.name}</span>
+                    <span className="health-meta">
+                      <span className={`badge ${meta.cls}`}>{meta.label}</span>
+                      <span className="health-last mono">last sync {row.last}</span>
+                      <span className="health-open mono">{row.open ? `${row.open} open` : "0 open"}</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </section>
         </>
       )}
