@@ -8,6 +8,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ASSETS, FINDINGS, WORKSPACE, OVERVIEW } from "../lib/data.js";
 import { appendSync, syncEntryFor } from "../lib/connectors.js";
+import { normalizeStatus, STATUS_LABEL, STATUS_GROUP } from "../lib/remediation.js";
 
 export const WORKSPACE_KEY = "kernveil.workspace.v1";
 export const FINDING_STATE_KEY = "kernveil.findingState.v1";
@@ -15,15 +16,6 @@ export const FINDING_ACTIONS_KEY = "kernveil.findingActions.v1";
 export const CONNECTORS_KEY = "kernveil.connectors.v1";
 export const CLOUD_KEY = "kernveil.cloudScans.v1";
 
-const STATUS_LABEL = {
-  open: "Open",
-  "in-progress": "In progress",
-  approved: "Awaiting approval",
-  resolved: "Resolved",
-};
-
-/* Approved findings still count as "open/active" for overview grouping. */
-const GROUP = { open: "open", approved: "open", "in-progress": "wip", resolved: "resolved" };
 const SEV_WEIGHT = { critical: 12, high: 8, medium: 5, low: 3 };
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
@@ -71,8 +63,8 @@ export function initialsOf(name) {
    for the (larger) narrative overview numbers. */
 const SEED = FINDINGS.reduce(
   (acc, f) => {
-    acc.byGrp[GROUP[f.status]] += 1;
-    if (f.status !== "resolved") acc.sevNonResolved[f.severity] += 1;
+    acc.byGrp[STATUS_GROUP[normalizeStatus(f.status)]] += 1;
+    if (normalizeStatus(f.status) !== "completed") acc.sevNonResolved[f.severity] += 1;
     return acc;
   },
   { byGrp: { open: 0, wip: 0, resolved: 0 }, sevNonResolved: { critical: 0, high: 0, medium: 0, low: 0 } }
@@ -89,16 +81,39 @@ const BASE = {
 
 function activityMeta(action, allFindings) {
   const f = allFindings.find((x) => x.id === action.findingId);
-  const title = f ? f.title : "a finding";
-  switch (action.status) {
-    case "resolved":
-      return { c: "var(--green)", txt: `Resolved · ${title}` };
+  const title = f ? ` · ${f.title}` : "";
+  switch (normalizeStatus(action.status)) {
+    case "completed":
+      return { c: "var(--green)", txt: `Completed remediation${title}` };
     case "in-progress":
-      return { c: "var(--amber)", txt: `Moved to in progress · ${title}` };
+      return { c: "var(--amber)", txt: `Moved to in progress${title}` };
     case "approved":
-      return { c: "var(--cyan)", txt: `Marked awaiting approval · ${title}` };
+      return { c: "var(--cyan)", txt: `Approved remediation${title}` };
+    case "awaiting-approval":
+      return { c: "var(--amber)", txt: `Awaiting approval${title}` };
+    case "rejected":
+      return { c: "var(--slate)", txt: `Proposal rejected${title}` };
+    case "failed":
+      return { c: "var(--orange)", txt: `Remediation failed${title}` };
     default:
-      return { c: "var(--red)", txt: `Reopened · ${title}` };
+      return { c: "var(--red)", txt: `Proposed${title}` };
+  }
+}
+
+function auditColor(status) {
+  switch (normalizeStatus(status)) {
+    case "completed":
+      return "var(--green)";
+    case "failed":
+      return "var(--orange)";
+    case "awaiting-approval":
+    case "approved":
+    case "in-progress":
+      return "var(--amber)";
+    case "rejected":
+      return "var(--slate)";
+    default:
+      return "var(--red)";
   }
 }
 
@@ -138,10 +153,10 @@ export function WorkspaceProvider({ children }) {
     setCloudScans([]);
   }, []);
 
-  const setFindingStatus = useCallback((id, status) => {
+  const setFindingStatus = useCallback((id, status, note) => {
     const at = Date.now();
     setStateMap((prev) => ({ ...prev, [id]: { status, at } }));
-    setActions((prev) => [...prev, { id: `${id}-${at}`, findingId: id, status, at }]);
+    setActions((prev) => [...prev, { id: `${id}-${at}`, findingId: id, status, at, note }]);
   }, []);
 
   const putConnector = useCallback((record) => {
@@ -215,18 +230,19 @@ export function WorkspaceProvider({ children }) {
     ];
 
     /* Live findings: seed data + imported scan findings, each with
-       persisted status overrides and appended history. */
+       persisted status overrides, appended history, and the audit trail
+       recorded with every status transition. */
     const mergeFinding = (f) => {
       const st = stateMap[f.id];
-      const status = st ? st.status : f.status;
+      const status = normalizeStatus(st ? st.status : f.status);
       const own = actions.filter((a) => a.findingId === f.id);
       const history = own.length
         ? [
             ...f.history,
             ...own.map((a) => ({
               time: fmtTime(a.at),
-              text: `${STATUS_LABEL[a.status]} — manual update`,
-              c: a.status === "resolved" ? "var(--green)" : a.status === "in-progress" || a.status === "approved" ? "var(--amber)" : "var(--red)",
+              text: `${STATUS_LABEL[normalizeStatus(a.status)]}${a.note ? ` — ${a.note}` : " — manual update"}`,
+              c: auditColor(a.status),
             })),
           ]
         : f.history;
@@ -241,28 +257,28 @@ export function WorkspaceProvider({ children }) {
     let riskDelta = 0;
 
     for (const f of FINDINGS) {
-      const status = stateMap[f.id] ? stateMap[f.id].status : f.status;
-      const gSeed = GROUP[f.status];
-      const gLive = GROUP[status];
+      const status = normalizeStatus(stateMap[f.id] ? stateMap[f.id].status : f.status);
+      const gSeed = STATUS_GROUP[normalizeStatus(f.status)];
+      const gLive = STATUS_GROUP[status];
       if (gSeed !== gLive) {
         live[gSeed] -= 1;
         live[gLive] += 1;
       }
-      if (status !== "resolved") liveSev[f.severity] += 1;
-      if (status !== f.status) {
-        const wasResolved = f.status === "resolved";
-        const isResolved = status === "resolved";
+      if (status !== "completed") liveSev[f.severity] += 1;
+      if (status !== normalizeStatus(f.status)) {
+        const wasResolved = normalizeStatus(f.status) === "completed";
+        const isResolved = status === "completed";
         if (!wasResolved && isResolved) riskDelta -= SEV_WEIGHT[f.severity];
         else if (wasResolved && !isResolved) riskDelta += SEV_WEIGHT[f.severity];
       }
     }
 
     /* Imported findings raise the score gently at half severity weight,
-       and drop back off when they are resolved. */
+       and drop back off when they are completed. */
     for (const f of customRecords) {
-      const status = stateMap[f.id] ? stateMap[f.id].status : f.status;
-      live[GROUP[status]] += 1;
-      if (status !== "resolved") {
+      const status = normalizeStatus(stateMap[f.id] ? stateMap[f.id].status : f.status);
+      live[STATUS_GROUP[status]] += 1;
+      if (status !== "completed") {
         liveSev[f.severity] += 1;
         riskDelta += Math.round(SEV_WEIGHT[f.severity] / 2);
       }
@@ -301,8 +317,8 @@ export function WorkspaceProvider({ children }) {
     const cloudOpen = cloudScans
       .flatMap((c) => c.findings || [])
       .filter((f) => {
-        const status = stateMap[f.id] ? stateMap[f.id].status : f.status;
-        return status !== "resolved";
+        const status = normalizeStatus(stateMap[f.id] ? stateMap[f.id].status : f.status);
+        return status !== "completed";
       }).length;
 
     return {

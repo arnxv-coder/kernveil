@@ -23,10 +23,14 @@ export function pop(els, delay = 0.06) {
 export const SEV_RANK = { critical: 0, high: 1, medium: 2, low: 3 };
 
 export const STATUS_META = {
-  open: { label: "Open", cls: "st-open" },
-  "in-progress": { label: "In progress", cls: "st-wip" },
-  approved: { label: "Awaiting approval", cls: "st-approved" },
-  resolved: { label: "Resolved", cls: "st-resolved" },
+  open: { label: "Proposed", cls: "st-open" },
+  "awaiting-approval": { label: "Awaiting approval", cls: "st-await" },
+  approved: { label: "Approved", cls: "st-approved" },
+  rejected: { label: "Rejected", cls: "st-rejected" },
+  "in-progress": { label: "In progress", cls: "st-work" },
+  completed: { label: "Completed", cls: "st-resolved" },
+  failed: { label: "Failed", cls: "st-failed" },
+  resolved: { label: "Completed", cls: "st-resolved" },
 };
 
 export const RISK_META = {

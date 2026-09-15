@@ -452,6 +452,43 @@ body.demo-body {
   transform: rotate(-90deg);
 }
 
+.remed-rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 1rem;
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-faint);
+}
+
+.remed-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+.remed-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.remed-row b {
+  margin-left: auto;
+  color: var(--text-1);
+  font-size: 0.82rem;
+}
+
+.overdue-line {
+  margin-top: 0.85rem;
+  font-size: 0.8rem;
+  color: var(--amber);
+  line-height: 1.5;
+}
+
 .risk-side-text {
   font-size: 0.92rem;
   color: var(--text-2);
@@ -879,6 +916,10 @@ body.demo-body {
 .st-wip     { --st-c: var(--amber); color: var(--amber); }
 .st-approved { --st-c: var(--cyan); color: var(--cyan); }
 .st-resolved { --st-c: var(--green); color: var(--green); }
+.st-await   { --st-c: var(--amber); color: var(--amber); }
+.st-work    { --st-c: var(--teal); color: var(--teal); }
+.st-rejected { --st-c: var(--slate); color: var(--text-3); }
+.st-failed  { --st-c: var(--orange); color: var(--orange); }
 
 .table-filter-wrap {
   padding: 1.4rem 1.5rem;
@@ -2169,6 +2210,94 @@ body.demo-body {
   flex-wrap: wrap;
   gap: 0.65rem;
   margin-top: 1rem;
+}
+
+/* ---------- remediation plan (approval draft preview) ---------- */
+
+.plan-block {
+  margin-top: 0.9rem;
+}
+
+.plan-glow {
+  display: inline-block;
+  margin-top: 0.55rem;
+  padding: 0.22rem 0.6rem;
+  border-radius: var(--r-full);
+  border: 1px solid rgba(42, 230, 199, 0.28);
+  background: var(--teal-dim);
+  color: var(--teal);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.plan-title {
+  margin-top: 0.6rem;
+  font-size: 0.95rem;
+  color: var(--text-1);
+  font-family: var(--font-mono);
+}
+
+.plan-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  margin-top: 0.85rem;
+}
+
+.plan-side {
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-md);
+  background: var(--inset);
+  padding: 0.65rem 0.8rem;
+}
+
+.plan-side ul {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.plan-side li {
+  font-size: 0.8rem;
+  color: var(--text-3);
+  line-height: 1.45;
+  position: relative;
+  padding-left: 1.05rem;
+}
+
+.plan-side li::before {
+  content: "·";
+  position: absolute;
+  left: 0.15rem;
+  color: var(--text-3);
+}
+
+.plan-after li::before {
+  content: "✓";
+  color: var(--green);
+  font-size: 0.72rem;
+  left: 0;
+}
+
+.plan-side-label {
+  font-size: 0.66rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.plan-after .plan-side-label {
+  color: var(--green);
+}
+
+.plan-note {
+  margin-top: 0.8rem;
+  font-size: 0.72rem;
+  color: var(--text-3);
+  line-height: 1.5;
 }
 
 /* ============================================================

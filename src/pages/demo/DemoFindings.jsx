@@ -11,12 +11,23 @@ const CATEGORIES = ["Exposure", "Configuration", "Dependencies", "Identity", "Re
 
 function sorted(list) {
   return list.slice().sort((a, b) => {
-    const ra = a.status === "resolved" ? 1 : 0;
-    const rb = b.status === "resolved" ? 1 : 0;
+    const ra = a.status === "completed" ? 1 : 0;
+    const rb = b.status === "completed" ? 1 : 0;
     if (ra !== rb) return ra - rb;
     return SEV_RANK[a.severity] - SEV_RANK[b.severity];
   });
 }
+
+const STATUS_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "open", label: "Proposed" },
+  { key: "awaiting-approval", label: "Awaiting approval" },
+  { key: "approved", label: "Approved" },
+  { key: "rejected", label: "Rejected" },
+  { key: "in-progress", label: "In progress" },
+  { key: "failed", label: "Failed" },
+  { key: "completed", label: "Completed" },
+];
 
 export default function DemoFindings() {
   const rootRef = useRef(null);
@@ -119,18 +130,19 @@ export default function DemoFindings() {
         </div>
 
         <div className="table-filter-wrap" style={{ paddingTop: 0 }}>
-          <Seg
-            dataKey="status"
-            value={status}
-            onChange={setStatus}
-            options={[
-              { key: "all", label: "All" },
-              { key: "open", label: "Open" },
-              { key: "in-progress", label: "In progress" },
-              { key: "approved", label: "Approved" },
-              { key: "resolved", label: "Resolved" },
-            ]}
-          />
+          <div className="chip-set" role="group" aria-label="Filter by remediation status">
+            {STATUS_FILTERS.map((o) => (
+              <button
+                key={o.key}
+                type="button"
+                className={`chip${status === o.key ? " is-active" : ""}`}
+                aria-pressed={status === o.key}
+                onClick={() => setStatus(o.key)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
 
           <div className="chip-set" role="group" aria-label="Filter by category">
             <button type="button" className={`chip${cat === "all" ? " is-active" : ""}`} onClick={() => setCat("all")}>All categories</button>

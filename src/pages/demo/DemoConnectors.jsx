@@ -153,13 +153,13 @@ export default function DemoConnectors() {
     () => (gh ? findings.filter((f) => f.related && f.related[0] === (gh.asset ? gh.asset.id : gh.id)) : []),
     [findings, gh]
   );
-  const openOnGh = ghFindings.filter((f) => f.status !== "resolved").length;
+  const openOnGh = ghFindings.filter((f) => f.status !== "completed").length;
 
   const cloudFindings = useMemo(
     () => (cloud ? findings.filter((f) => f.source === "cloud-fixture" && cloud.assets.some((a) => a.id === f.asset)) : []),
     [cloud, findings]
   );
-  const openOnCloud = cloudFindings.filter((f) => f.status !== "resolved").length;
+  const openOnCloud = cloudFindings.filter((f) => f.status !== "completed").length;
 
   useEffect(() => {
     const root = rootRef.current;

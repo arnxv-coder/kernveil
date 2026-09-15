@@ -12,6 +12,7 @@ import { gsap, reducedMotion, SEV_RANK, CONN_ICONS } from "../../lib/anim.jsx";
 import { RISK_SERIES } from "../../lib/data.js";
 import { severityPill, statusBadge } from "../../components/demo/badges.jsx";
 import { CONN_STATE_META, connStatusFor, lastSyncText } from "../../lib/connectors.js";
+import { normalizeStatus, STATUS_ORDER } from "../../lib/remediation.js";
 import { useDashboardFx } from "../../hooks/useDashboardFx.js";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 
@@ -33,7 +34,7 @@ const SRC_META = {
   sample: { label: "Sample", dot: "var(--amber)" },
 };
 
-const STATUS_ORDER = { open: 0, "in-progress": 1, approved: 2, resolved: 3 };
+/* STATUS_ORDER comes from remediation.js — proposed/rejected first, completed last. */
 
 function impactTier(impact) {
   const s = String(impact || "").toLowerCase();
@@ -249,15 +250,15 @@ export default function DemoOverview() {
   const assetName = (id) => (assets.find((a) => a.id === id) || {}).name || id;
 
   const topOpen = useMemo(
-    () => priorityRows(allFindings.filter((f) => f.status !== "resolved"))[0] || null,
+    () => priorityRows(allFindings.filter((f) => f.status !== "completed"))[0] || null,
     [allFindings]
   );
   const isGlobalTopOnList = !!(topOpen && rows[0] && topOpen.id === rows[0].id);
 
-  const openCount = allFindings.filter((f) => f.status !== "resolved").length;
+  const openCount = allFindings.filter((f) => f.status !== "completed").length;
 
   const openForSource = (s) =>
-    allFindings.reduce((n, f) => (sourceOf(f) === s && f.status !== "resolved" ? n + 1 : n), 0);
+    allFindings.reduce((n, f) => (sourceOf(f) === s && f.status !== "completed" ? n + 1 : n), 0);
 
   const healthRows = useMemo(() => {
     const gh = connectors.find((c) => c.kind === "github");
@@ -290,6 +291,25 @@ export default function DemoOverview() {
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allFindings, connectors, cloudScans]);
+
+  /* Remediation progress — count per workflow status, plus actions that
+     have been sitting unresolved longer than a week. */
+  const statusCounts = useMemo(() => {
+    const c = { open: 0, "awaiting-approval": 0, approved: 0, rejected: 0, "in-progress": 0, failed: 0, completed: 0 };
+    for (const f of allFindings) c[normalizeStatus(f.status)] += 1;
+    return c;
+  }, [allFindings]);
+
+  const overdue = useMemo(
+    () =>
+      allFindings.filter((f) => {
+        const s = normalizeStatus(f.status);
+        if (s === "completed") return false;
+        const age = Date.now() - parseDate(f.first);
+        return age > 7 * 24 * 60 * 60 * 1000;
+      }).length,
+    [allFindings]
+  );
 
   useEffect(() => {
     const list = queueRef.current;
@@ -435,6 +455,19 @@ export default function DemoOverview() {
                 </span>
               </div>
               <p className="remed-note mono">{o.resolved} of {o.total} findings resolved</p>
+              <div className="remed-rows">
+                <div className="remed-row"><span className="remed-dot" style={{ background: "var(--red)" }}></span><span>Proposed</span><b className="mono">{statusCounts.open}</b></div>
+                <div className="remed-row"><span className="remed-dot" style={{ background: "var(--amber)" }}></span><span>Awaiting approval</span><b className="mono">{statusCounts["awaiting-approval"]}</b></div>
+                <div className="remed-row"><span className="remed-dot" style={{ background: "var(--cyan)" }}></span><span>Approved</span><b className="mono">{statusCounts.approved}</b></div>
+                <div className="remed-row"><span className="remed-dot" style={{ background: "var(--teal)" }}></span><span>In progress</span><b className="mono">{statusCounts["in-progress"]}</b></div>
+                <div className="remed-row"><span className="remed-dot" style={{ background: "var(--orange)" }}></span><span>Failed</span><b className="mono">{statusCounts.failed}</b></div>
+                <div className="remed-row"><span className="remed-dot" style={{ background: "var(--green)" }}></span><span>Completed</span><b className="mono">{statusCounts.completed}</b></div>
+              </div>
+              {overdue > 0 && (
+                <p className="overdue-line">
+                  {overdue} unresolved action{overdue === 1 ? "" : "s"} older than a week — review the priority queue.
+                </p>
+              )}
             </section>
 
             <section className="panel activity-panel">
@@ -508,17 +541,27 @@ export default function DemoOverview() {
                 ]}
               />
 
-              <Seg
-                dataKey="status"
-                value={status}
-                onChange={setStatus}
-                options={[
-                  { key: "all", label: "All" },
-                  { key: "open", label: "Open" },
+              <div className="chip-set" role="group" aria-label="Filter by remediation status">
+                {[
+                  { key: "all", label: "All statuses" },
+                  { key: "open", label: "Proposed" },
+                  { key: "awaiting-approval", label: "Awaiting approval" },
+                  { key: "approved", label: "Approved" },
+                  { key: "rejected", label: "Rejected" },
                   { key: "in-progress", label: "In progress" },
-                  { key: "resolved", label: "Resolved" },
-                ]}
-              />
+                  { key: "failed", label: "Failed" },
+                ].map((o) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    className={`chip${status === o.key ? " is-active" : ""}`}
+                    aria-pressed={status === o.key}
+                    onClick={() => setStatus(o.key)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
 
               <div className="select-field">
                 <label className="visually-hidden" htmlFor="queueAsset">Filter by affected asset</label>

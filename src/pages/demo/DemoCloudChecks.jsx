@@ -62,7 +62,7 @@ export default function DemoCloudChecks() {
     () => (scan ? findings.filter((f) => f.source === "cloud-fixture" && scan.assets.some((a) => a.id === f.asset)) : []),
     [scan, findings]
   );
-  const openOnCloud = cloudFindings.filter((f) => f.status !== "resolved").length;
+  const openOnCloud = cloudFindings.filter((f) => f.status !== "completed").length;
 
   const sampleUrl = useMemo(() => URL.createObjectURL(new Blob([JSON.stringify(buildDemoFixture(), null, 2)], { type: "application/json" })), []);
 

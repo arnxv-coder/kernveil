@@ -5,18 +5,30 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { gsap, reducedMotion, TYPE_ICONS } from "../../lib/anim.jsx";
 import { severityPill, statusBadge } from "../../components/demo/badges.jsx";
+import { NEXT_ACTIONS, remediationOf } from "../../lib/remediation.js";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
+
+const STATUS_NOTE = {
+  open: "This finding has a proposed remediation. Route it through approval, or start working on it directly. Everything stays inside this demo workspace.",
+  "awaiting-approval": "The remediation draft is waiting on a decision. Approve it to queue the change, or reject the proposal.",
+  approved: "This change is approved and queued. Mark it in progress once execution begins.",
+  rejected: "The proposal was rejected. Resubmit it, or proceed without approval.",
+  "in-progress": "Remediation is underway. Mark it completed once the check clears — or failed if it doesn't.",
+  completed: "This finding is closed. Kernveil keeps monitoring and will re-propose it if the issue returns.",
+  failed: "The last attempt did not clear the check. Retry the remediation, or re-propose a different approach.",
+};
 
 export default function DemoFindingDetail() {
   const rootRef = useRef(null);
   const REDUCED = reducedMotion();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { findings, assets, setFindingStatus } = useWorkspace();
+  const { findings, assets, actions, setFindingStatus } = useWorkspace();
   const [saved, setSaved] = useState(false);
 
   const id = params.get("id");
   const f = findings.find((x) => x.id === id);
+  const plan = remediationOf(f);
 
   const repoAsset = f ? assets.find((a) => a.id === f.asset) : null;
   const sourceNote =
@@ -30,8 +42,8 @@ export default function DemoFindingDetail() {
           : `Imported scan data — this finding came from the fixture ${f.fixture ? `"${f.fixture}" ` : ""}you uploaded. No live cloud account is connected; the evidence below is from the file.`
         : "Demo finding — fictional sample data for illustration.";
 
-  const changeStatus = (status) => {
-    setFindingStatus(id, status);
+  const changeStatus = (status, note) => {
+    setFindingStatus(id, status, note);
     setSaved(true);
     window.clearTimeout(changeStatus._t);
     changeStatus._t = window.setTimeout(() => setSaved(false), 3200);
@@ -69,7 +81,7 @@ export default function DemoFindingDetail() {
     ));
 
   const steps =
-    f && f.status !== "resolved" && f.steps && f.steps.length
+    f && f.status !== "completed" && f.steps && f.steps.length
       ? <div className="detail-block action-block" style={{ marginTop: 0 }}>
           <h4>Recommended next step</h4>
           <div className="action-steps">
@@ -78,7 +90,7 @@ export default function DemoFindingDetail() {
         </div>
       : <div className="detail-block" style={{ marginTop: 0 }}>
           <h4>Recommended next step</h4>
-          <p>This finding is already resolved. Nothing to do — Kernveil will let you know if it reappears.</p>
+          <p>This finding is already completed. Nothing to do — Kernveil will let you know if it reappears.</p>
         </div>;
 
   const boxRef = useRef(null);
@@ -179,43 +191,48 @@ export default function DemoFindingDetail() {
                     {saved && <span className="status-saved">Saved to this workspace</span>}
                   </div>
                   <p className="status-note">
-                    {f.status === "resolved"
-                      ? "This finding is closed. Kernveil keeps monitoring and will reopen it if the issue returns."
-                      : "Change the status here to push the finding through remediation. Your change is saved in this demo workspace."}
+                    {STATUS_NOTE[f.status] || STATUS_NOTE.open}
                   </p>
                   <div className="status-actions">
-                    {f.status === "open" && (
-                      <button type="button" className="btn btn-primary btn-sm" onClick={() => changeStatus("in-progress")}>
-                        Mark in progress
+                    {(NEXT_ACTIONS[f.status] || []).map((a) => (
+                      <button
+                        key={a.label}
+                        type="button"
+                        className={`btn ${a.primary ? "btn-primary" : a.ghost ? "btn-ghost" : "btn-secondary"} btn-sm`}
+                        onClick={() => changeStatus(a.to, a.note(plan))}
+                      >
+                        {a.label}
                       </button>
-                    )}
-                    {f.status === "in-progress" && (
-                      <>
-                        <button type="button" className="btn btn-primary btn-sm" onClick={() => changeStatus("resolved")}>
-                          Mark resolved
-                        </button>
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => changeStatus("open")}>
-                          Back to open
-                        </button>
-                      </>
-                    )}
-                    {f.status === "approved" && (
-                      <>
-                        <button type="button" className="btn btn-primary btn-sm" onClick={() => changeStatus("resolved")}>
-                          Mark resolved
-                        </button>
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => changeStatus("open")}>
-                          Back to open
-                        </button>
-                      </>
-                    )}
-                    {f.status === "resolved" && (
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => changeStatus("open")}>
-                        Reopen finding
-                      </button>
-                    )}
+                    ))}
                   </div>
                 </div>
+
+                {plan && f.status !== "completed" && (
+                  <div className="panel detail-block plan-block" id="remedPlan">
+                    <h4>Remediation plan</h4>
+                    <span className="plan-glow">{plan.glow}</span>
+                    <p className="plan-title">{plan.title}</p>
+                    <div className="plan-compare">
+                      <div className="plan-side">
+                        <span className="plan-side-label">Before</span>
+                        <ul>{(plan.before || []).map((b, i) => <li key={i}>{b}</li>)}</ul>
+                      </div>
+                      <div className="plan-side plan-after">
+                        <span className="plan-side-label">After</span>
+                        <ul>{(plan.after || []).map((a, i) => <li key={i}>{a}</li>)}</ul>
+                      </div>
+                    </div>
+                    <p className="plan-note mono">
+                      Preview only — Kernveil demonstrates this draft inside your browser. Nothing is opened, merged, or changed in a real repository or cloud account.
+                    </p>
+                  </div>
+                )}
+                {f.status === "completed" && (
+                  <div className="panel detail-block" id="remedPlan">
+                    <h4>Remediation plan</h4>
+                    <p>This change has been applied and verified. Kernveil keeps monitoring; it will re-propose remediation if the issue returns.</p>
+                  </div>
+                )}
 
                 {steps}
 
@@ -225,8 +242,17 @@ export default function DemoFindingDetail() {
                 </div>
 
                 <div className="panel detail-block">
-                  <h4>Finding history</h4>
-                  <ol className="history-list" style={{ margin: 0 }}>{history}</ol>
+                  <h4>Finding history & audit</h4>
+                  <ol className="history-list" style={{ margin: 0 }}>
+                    {history.length ? (
+                      history
+                    ) : (
+                      <li className="history-item" style={{ "--his-c": "var(--slate)", listStyle: "none" }}>
+                        <span className="history-title">No recorded changes yet</span>
+                        <span className="history-time"></span>
+                      </li>
+                    )}
+                  </ol>
                 </div>
               </div>
             </div>
