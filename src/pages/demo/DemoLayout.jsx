@@ -157,6 +157,18 @@ export default function DemoLayout({ page, children }) {
         </svg>
       ),
     },
+    {
+      page: "plans",
+      to: "/demo-plans",
+      label: "Plans & usage",
+      count: null,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M3 10h18M7 15h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      ),
+    },
   ];
 
   const toggleSidebar = (open) => {
