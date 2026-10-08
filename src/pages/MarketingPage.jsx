@@ -105,7 +105,7 @@ const CAPS = [
     visual: (
       <>
         <svg className="cap-net" viewBox="0 0 160 110" fill="none">
-          <g stroke="rgba(42,230,199,0.35)" strokeWidth="1">
+          <g stroke="rgba(99,210,169,0.3)" strokeWidth="1">
             <line x1="30" y1="80" x2="70" y2="35" className="cap-edge" />
             <line x1="70" y1="35" x2="120" y2="70" className="cap-edge" />
             <line x1="30" y1="80" x2="120" y2="70" className="cap-edge" />
@@ -241,6 +241,25 @@ export default function MarketingPage() {
 
   useMarketingFx(rootRef);
 
+  useEffect(() => {
+    const open = modalKey !== null || mobileOpen;
+    if (open) document.documentElement.classList.add("no-scroll");
+    else document.documentElement.classList.remove("no-scroll");
+    return () => document.documentElement.classList.remove("no-scroll");
+  }, [modalKey, mobileOpen]);
+
+  useEffect(() => {
+    if (!modalKey && !mobileOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        if (modalKey) setModalKey(null);
+        if (mobileOpen) setMobileOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modalKey, mobileOpen]);
+
   let lastFocus = useRef(null);
 
   return (
@@ -290,21 +309,23 @@ export default function MarketingPage() {
       </header>
 
       {/* Mobile menu */}
-      <div className="mobile-menu" id="mobile-menu" hidden={!mobileOpen}>
-        <nav className="mobile-menu-nav" aria-label="Mobile">
-          <a href="#capabilities" className="mm-link">Product</a>
-          <a href="#how-it-works" className="mm-link">How it works</a>
-          <a href="#coverage" className="mm-link">Coverage</a>
-          <a href="#example-finding" className="mm-link">Sample finding</a>
-        </nav>
-        <div className="mobile-menu-actions">
-          <a className="btn btn-secondary" href="#capabilities">Sign in</a>
-          <Link className="btn btn-primary" to="/demo-entry" onClick={() => setMobileOpen(false)}>
-            Explore the demo
-            <ArrowIcon />
-          </Link>
+      {mobileOpen && (
+        <div className={`mobile-menu${mobileOpen ? " is-open" : ""}`} id="mobile-menu">
+          <nav className="mobile-menu-nav" aria-label="Mobile">
+            <a href="#capabilities" className="mm-link">Product</a>
+            <a href="#how-it-works" className="mm-link">How it works</a>
+            <a href="#coverage" className="mm-link">Coverage</a>
+            <a href="#example-finding" className="mm-link">Sample finding</a>
+          </nav>
+          <div className="mobile-menu-actions">
+            <a className="btn btn-secondary" href="#capabilities">Sign in</a>
+            <Link className="btn btn-primary" to="/demo-entry" onClick={() => setMobileOpen(false)}>
+              Explore the demo
+              <ArrowIcon />
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
 
       <main id="main">
         {/* ============ HERO ============ */}
@@ -315,9 +336,9 @@ export default function MarketingPage() {
               <svg className="network-svg" viewBox="0 0 700 560" fill="none" preserveAspectRatio="xMidYMid slice">
                 <defs>
                   <linearGradient id="edgeGrad" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0" stopColor="rgba(42,230,199,0)" />
-                    <stop offset="0.5" stopColor="rgba(42,230,199,0.4)" />
-                    <stop offset="1" stopColor="rgba(42,230,199,0)" />
+                    <stop offset="0" stopColor="rgba(99,210,169,0)" />
+                    <stop offset="0.5" stopColor="rgba(99,210,169,0.4)" />
+                    <stop offset="1" stopColor="rgba(99,210,169,0)" />
                   </linearGradient>
                 </defs>
                 <g className="edges" stroke="url(#edgeGrad)" strokeWidth="1">
@@ -342,7 +363,7 @@ export default function MarketingPage() {
                   <circle cx="150" cy="40" r="4" />
                 </g>
                 <g className="pulses">
-                  <circle r="3" fill="#53f3d6" className="pulse-dot" />
+                  <circle r="3" fill="#7fe0bd" className="pulse-dot" />
                 </g>
               </svg>
             </div>
@@ -398,9 +419,9 @@ export default function MarketingPage() {
                       <svg viewBox="0 0 120 120" className="gauge" aria-hidden="true">
                         <defs>
                           <linearGradient id="gaugeGrad" x1="0" y1="1" x2="1" y2="0">
-                            <stop offset="0" stopColor="#ef6a72" />
-                            <stop offset="0.45" stopColor="#f4b64a" />
-                            <stop offset="1" stopColor="#2ae6c7" />
+                            <stop offset="0" stopColor="#e0646e" />
+                            <stop offset="0.45" stopColor="#e6b45e" />
+                            <stop offset="1" stopColor="#63d2a9" />
                           </linearGradient>
                         </defs>
                         <circle className="gauge-track" cx="60" cy="60" r="50" />
@@ -437,8 +458,8 @@ export default function MarketingPage() {
                     <svg className="trend-chart" viewBox="0 0 300 74" preserveAspectRatio="none" aria-hidden="true">
                       <defs>
                         <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0" stopColor="rgba(42,230,199,0.24)" />
-                          <stop offset="1" stopColor="rgba(42,230,199,0)" />
+                          <stop offset="0" stopColor="rgba(99,210,169,0.24)" />
+                          <stop offset="1" stopColor="rgba(99,210,169,0)" />
                         </linearGradient>
                       </defs>
                       <path className="trend-area" d="M0,52 L34,44 L68,48 L102,38 L136,42 L170,30 L204,34 L238,22 L272,26 L300,16 L300,74 L0,74 Z" fill="url(#trendFill)" />
@@ -840,15 +861,19 @@ export default function MarketingPage() {
       </footer>
 
       {/* ============ MODALS (sign-in / legal) ============ */}
-      <div className="modal-backdrop" id="modalBackdrop" hidden={modalKey === null}></div>
-      <div className="modal" id="modal" role="dialog" aria-modal="true" hidden={modalKey === null}>
-        <button className="modal-close" id="modalClose" type="button" aria-label="Close dialog" onClick={closeModal}>
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-        </button>
-        <div className="modal-body">
-          {modalKey && <ModalContent key={modalKey} modalKey={modalKey} />}
-        </div>
-      </div>
+      {modalKey && (
+        <>
+          <div className="modal-backdrop is-open" id="modalBackdrop" onClick={closeModal}></div>
+          <div className="modal is-open" id="modal" role="dialog" aria-modal="true">
+            <button className="modal-close" id="modalClose" type="button" aria-label="Close dialog" onClick={closeModal}>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+            </button>
+            <div className="modal-body">
+              <ModalContent key={modalKey} modalKey={modalKey} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 

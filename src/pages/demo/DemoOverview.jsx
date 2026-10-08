@@ -168,12 +168,12 @@ function TrendChart() {
       >
         <defs>
           <linearGradient id="chartGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#7ddbf4" />
-            <stop offset="1" stopColor="#2ae6c7" />
+            <stop offset="0" stopColor="#6cc8d4" />
+            <stop offset="1" stopColor="#63d2a9" />
           </linearGradient>
           <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="rgba(42,230,199,0.22)" />
-            <stop offset="1" stopColor="rgba(42,230,199,0)" />
+            <stop offset="0" stopColor="rgba(99,210,169,0.22)" />
+            <stop offset="1" stopColor="rgba(99,210,169,0)" />
           </linearGradient>
         </defs>
         {G.grid.map((g, i) => (
@@ -472,9 +472,9 @@ export default function DemoOverview() {
                   <svg viewBox="0 0 120 120" aria-hidden="true">
                     <defs>
                       <linearGradient id="dashGauge" x1="0" y1="1" x2="1" y2="0">
-                        <stop offset="0" stopColor="#ef6a72" />
-                        <stop offset="0.45" stopColor="#f4b64a" />
-                        <stop offset="1" stopColor="#2ae6c7" />
+                        <stop offset="0" stopColor="#e0646e" />
+                        <stop offset="0.45" stopColor="#e6b45e" />
+                        <stop offset="1" stopColor="#63d2a9" />
                       </linearGradient>
                     </defs>
                     <circle className="gauge-track" cx="60" cy="60" r="50" />

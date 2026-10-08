@@ -79,8 +79,8 @@ export default function DemoBackups() {
       gsap.fromTo(cards, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", stagger: 0.08, delay: 0.1 });
       gsap.fromTo(
         cards,
-        { boxShadow: "0 0 0 1px rgba(148,180,225,0.1)" },
-        { boxShadow: "0 0 0 1px rgba(148,180,225,0.2), var(--shadow-sm)", duration: 0.45, ease: "power1.out", stagger: 0.08, delay: 0.32 }
+        { boxShadow: "0 0 0 1px rgba(255,255,255,0.1)" },
+        { boxShadow: "0 0 0 1px rgba(255,255,255,0.2), var(--shadow-sm)", duration: 0.45, ease: "power1.out", stagger: 0.08, delay: 0.32 }
       );
     }, root);
     return () => ctx.revert();

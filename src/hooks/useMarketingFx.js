@@ -141,7 +141,7 @@ export function useMarketingFx(rootRef) {
       const dots = FLOWS.map((f, i) => {
         const c = document.createElementNS(NS, "circle");
         c.setAttribute("r", String(2.2 + (i % 2) * 1.2));
-        c.setAttribute("fill", i % 2 ? "#7ddbf4" : "#53f3d6");
+        c.setAttribute("fill", i % 2 ? "#6cc8d4" : "#7fe0bd");
         c.style.opacity = "0";
         g.appendChild(c);
         return { el: c, f, dur: 3.2 + i * 1.1, delay: i * 1.7 };
@@ -270,7 +270,7 @@ export function useMarketingFx(rootRef) {
       const controls = [];
       dots.forEach((d, i) => {
         controls.push(
-          animate(d, { backgroundColor: "rgba(42,230,199,1)" }, { duration: 1.2, repeat: Infinity, repeatType: "mirror", delay: i * 0.18, ease: "easeInOut" })
+          animate(d, { backgroundColor: "rgba(99,210,169,1)" }, { duration: 1.2, repeat: Infinity, repeatType: "mirror", delay: i * 0.18, ease: "easeInOut" })
         );
       });
       return () => {
