@@ -7,9 +7,6 @@
   "functions": {
     "api/scan.js": {
       "maxDuration": 30
-    },
-    "api/leads.js": {
-      "maxDuration": 10
     }
   }
 }
