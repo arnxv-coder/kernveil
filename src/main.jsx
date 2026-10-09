@@ -6,11 +6,13 @@ import { useLayoutEffect } from "react";
 import "../styles/tokens.css";
 import "../styles/base.css";
 import "../styles/marketing.css";
+import "../styles/scan.css";
 import "../styles/dashboard.css";
 
 import { WorkspaceProvider } from "./context/WorkspaceContext.jsx";
 import MotionNotice from "./components/MotionNotice.jsx";
 import MarketingPage from "./pages/MarketingPage.jsx";
+import ScanPage from "./pages/ScanPage.jsx";
 import DemoEntry from "./pages/demo/DemoEntry.jsx";
 import DemoLayout from "./pages/demo/DemoLayout.jsx";
 import DemoOverview from "./pages/demo/DemoOverview.jsx";
@@ -30,7 +32,7 @@ import DemoFindingDetail from "./pages/demo/DemoFindingDetail.jsx";
 function BodyClass() {
   const location = useLocation();
   useLayoutEffect(() => {
-    const marketing = location.pathname === "/";
+    const marketing = location.pathname === "/" || location.pathname === "/scan";
     document.body.className = marketing ? "marketing" : "demo-body";
   }, [location.pathname]);
   return null;
@@ -44,6 +46,7 @@ function App() {
       <WorkspaceProvider>
         <Routes>
           <Route path="/" element={<MarketingPage />} />
+          <Route path="/scan" element={<ScanPage />} />
           <Route path="/demo-entry" element={<DemoEntry />} />
           <Route path="/demo" element={<DemoLayout page="overview"><DemoOverview /></DemoLayout>} />
           <Route path="/demo-assets" element={<DemoLayout page="assets"><DemoAssets /></DemoLayout>} />
