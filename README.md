@@ -112,13 +112,37 @@ POST /api/scan  { "host": "example.com" }
   -> { preview: { host, resolvable, score, grade, totals, issues }, report: null, gated: true }
 
 POST /api/scan  { "host": "example.com", "email": "you@company.com" }
-  -> { preview, report: { host, score, grade, totals, checks[] }, gated: false, leadCaptured: true }
+  -> { preview, report: null, gated: false, emailed: true, emailedTo, leadCaptured: true, notified }
 ```
 
-The full report is only returned when a valid email is supplied. Rate limiting is
-**in-memory and best-effort** — it protects a warm instance but resets on cold start and
-is not shared across concurrent instances. That is fine for a lead magnet; put a real
-limiter in front of it if it is ever abused.
+The full report is emailed to the visitor as a branded HTML message with a plain-text
+alternative. `emailed: true` means the report is in their inbox and `report` is `null`.
+If delivery fails, `emailed: false` and the full report is returned in `report` so the
+page can show it instead — a visitor never dead-ends on a send failure. The lead is
+captured and the owner notified in every case.
+
+Rate limiting is **in-memory and best-effort** — it protects a warm instance but resets
+on cold start and is not shared across concurrent instances. That is fine for a lead
+magnet; put a real limiter in front of it if it is ever abused.
+
+### ⚠️ Before this works for real visitors: verify a sending domain
+
+Resend's test mode only permits sending to the address on the Resend account. Until a
+sending domain is verified, a report addressed to any other recipient is rejected by
+Resend (HTTP 403) and the page falls back to showing the report on screen — the scan
+still works, but nobody receives an email.
+
+To fix it:
+
+1. Add a domain you own to Vercel as a custom domain (a `*.vercel.app` subdomain cannot
+   be used — Vercel does not expose DNS control for it).
+2. At [resend.com/domains](https://resend.com/domains), add that domain and create the
+   DNS records Resend gives you.
+3. Set `LEADS_FROM` to an address on the verified domain, e.g.
+   `Kernveil <scan@yourdomain.com>`.
+
+Until then, `LEADS_FROM` defaults to `onboarding@resend.dev`, which delivers only to the
+account address.
 
 ### Environment variables
 
