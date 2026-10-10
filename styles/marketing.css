@@ -15,10 +15,15 @@
   transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 }
 
+/* Deliberately no backdrop-filter here. A full-width fixed element with a
+   live backdrop blur forces the compositor to re-blur the page behind it on
+   every scroll frame, which is the single most common cause of janky
+   scrolling on a page this long. An opaque bar reads as intentional and
+   costs nothing. */
 .site-header.is-solid {
-  background: rgba(10, 10, 11, 0.92);
-  backdrop-filter: blur(12px);
+  background: rgba(10, 10, 11, 0.94);
   border-bottom: 1px solid var(--border-faint);
+  will-change: background-color;
 }
 
 .header-inner {

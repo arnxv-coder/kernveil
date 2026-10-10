@@ -302,10 +302,29 @@ export function useMarketingFx(rootRef) {
 function setupHeaderScroll() {
   const header = document.querySelector("#site-header");
   if (!header) return;
-  const onScroll = () => {
-    header.classList.toggle("is-solid", window.scrollY > 12);
+
+  // Coalesce scroll events into one write per frame, and only touch the DOM
+  // when the state actually flips. Toggling a class on every scroll event
+  // forces a style recalculation per event instead of per frame.
+  let ticking = false;
+  let solid = null;
+
+  const apply = () => {
+    ticking = false;
+    const next = window.scrollY > 12;
+    if (next !== solid) {
+      solid = next;
+      header.classList.toggle("is-solid", next);
+    }
   };
-  onScroll();
+
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(apply);
+  };
+
+  apply();
   window.addEventListener("scroll", onScroll, { passive: true });
   return () => window.removeEventListener("scroll", onScroll);
 }
