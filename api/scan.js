@@ -56,7 +56,7 @@ async function notifyLead({ host, email, result }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: process.env.LEADS_FROM || "Kernveil <leads@kernveil.vercel.app>",
+      from: process.env.LEADS_FROM || "Kernveil <onboarding@resend.dev>",
       to: [to],
       subject: `Scan lead: ${host} (grade ${result.grade}, ${result.totals.fail} failing)`,
       text: [

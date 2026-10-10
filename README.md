@@ -126,11 +126,17 @@ limiter in front of it if it is ever abused.
 | --- | --- | --- |
 | `RESEND_API_KEY` | no | Enables lead email alerts |
 | `LEADS_EMAIL` | no | Where lead alerts are delivered |
-| `LEADS_FROM` | no | Verified sender; defaults to `Kernveil <leads@kernveil.vercel.app>` |
+| `LEADS_FROM` | no | Verified sender; defaults to `Kernveil <onboarding@resend.dev>` |
 
-**Without these the scanner still works** — visitors still get their full report — but
-lead alerts are skipped and a warning is written to the function logs. Set them before
-relying on lead capture.
+Without these the scanner still works — visitors still get their full report — but
+lead alerts are skipped and a warning is written to the function logs.
+
+**Sender and recipients (current limitation).** Resend's test mode only permits sending
+to the address on the Resend account, so alerts currently go to `playnav.yt@gmail.com`
+using the `onboarding@resend.dev` sender. To send to any other recipient, verify a
+sending domain at [resend.com/domains](https://resend.com/domains), add the DNS records
+it gives you, then set `LEADS_FROM` to an address on that verified domain. A `vercel.app`
+subdomain cannot be used as a sending domain.
 
 ## Honest-marketing rules used here
 
