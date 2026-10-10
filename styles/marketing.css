@@ -1547,6 +1547,119 @@
 }
 
 /* ============================================================
+   Free scan promo
+   ============================================================ */
+
+.scan-promo {
+  padding-block: clamp(3.5rem, 8vw, 6rem);
+  border-top: 1px solid var(--border-faint);
+}
+
+.scan-promo-inner {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: center;
+}
+
+.scan-promo-title {
+  font-size: var(--fs-3xl);
+  letter-spacing: var(--tracking-tight);
+  margin-block: var(--sp-3) var(--sp-4);
+}
+
+.scan-promo-sub {
+  font-size: var(--fs-base);
+  color: var(--text-2);
+  line-height: var(--lh-loose);
+  margin-bottom: var(--sp-5);
+  max-width: 52ch;
+}
+
+.scan-promo-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-6);
+}
+
+.scan-promo-list li {
+  position: relative;
+  padding-left: var(--sp-5);
+  font-size: var(--fs-md);
+  color: var(--text-2);
+  line-height: var(--lh-normal);
+}
+
+.scan-promo-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--teal);
+}
+
+.scan-promo-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.scan-promo-note {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.scan-promo-sample {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--bg-elevated);
+}
+
+.scan-promo-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-top: var(--sp-2);
+}
+
+.scan-promo-host {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+.scan-promo-grade {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--teal);
+}
+
+.scan-promo-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--inset);
+  overflow: hidden;
+}
+
+.scan-promo-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal);
+}
+
+/* ============================================================
    Footer
    ============================================================ */
 
@@ -1782,6 +1895,11 @@
 
   .step-track {
     display: none;
+  }
+
+  .scan-promo-inner {
+    grid-template-columns: 1fr;
+    gap: var(--sp-7);
   }
 }
 

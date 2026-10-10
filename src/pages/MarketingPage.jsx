@@ -275,6 +275,7 @@ export default function MarketingPage() {
           </a>
 
           <nav className="nav-desktop" aria-label="Primary">
+            <Link className="nav-link" to="/scan">Free scan</Link>
             <a href="#capabilities" className="nav-link">Product</a>
             <a href="#how-it-works" className="nav-link">How it works</a>
             <a href="#coverage" className="nav-link">Coverage</a>
@@ -312,6 +313,7 @@ export default function MarketingPage() {
       {mobileOpen && (
         <div className={`mobile-menu${mobileOpen ? " is-open" : ""}`} id="mobile-menu">
           <nav className="mobile-menu-nav" aria-label="Mobile">
+            <Link className="mm-link" to="/scan" onClick={() => setMobileOpen(false)}>Free scan</Link>
             <a href="#capabilities" className="mm-link">Product</a>
             <a href="#how-it-works" className="mm-link">How it works</a>
             <a href="#coverage" className="mm-link">Coverage</a>
@@ -319,8 +321,8 @@ export default function MarketingPage() {
           </nav>
           <div className="mobile-menu-actions">
             <a className="btn btn-secondary" href="#capabilities">Sign in</a>
-            <Link className="btn btn-primary" to="/demo-entry" onClick={() => setMobileOpen(false)}>
-              Explore the demo
+            <Link className="btn btn-primary" to="/scan" onClick={() => setMobileOpen(false)}>
+              Check if your site is secure
               <ArrowIcon />
             </Link>
           </div>
@@ -386,16 +388,16 @@ export default function MarketingPage() {
                 understand the risk, and take the next right step — without needing a dedicated security team.
               </p>
               <div className="hero-cta" data-hero-cta>
-                <Link className="btn btn-primary btn-lg" to="/demo-entry" data-magnetic>
-                  Explore the demo
+                <Link className="btn btn-primary btn-lg" to="/scan" data-magnetic>
+                  Check if your site is secure
                   <ArrowIcon />
                 </Link>
-                <a className="btn btn-secondary btn-lg" href="#how-it-works" data-magnetic>
-                  See how it works
-                </a>
+                <Link className="btn btn-secondary btn-lg" to="/demo-entry" data-magnetic>
+                  Explore the demo
+                </Link>
               </div>
               <p className="hero-note" data-hero-note>
-                One clear view of the security risks that matter most.
+                Free scan of your own domain. No account, no signup.
               </p>
             </div>
 
@@ -787,6 +789,58 @@ export default function MarketingPage() {
                     <span>Last checked <b className="mono">2 minutes ago</b></span>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ============ FREE SCAN ============ */}
+        <section className="scan-promo" id="free-scan">
+          <div className="container">
+            <div className="scan-promo-inner" data-reveal>
+              <div className="scan-promo-copy">
+                <span className="eyebrow neutral">Free tool</span>
+                <h2 className="scan-promo-title">Run a real scan of your own domain.</h2>
+                <p className="scan-promo-sub">
+                  Not a sample report. We check your live domain for the misconfigurations
+                  attackers actually use — missing HTTPS enforcement, absent security headers,
+                  broken email authentication, and publicly exposed files. It takes a few
+                  seconds and needs no account.
+                </p>
+                <ul className="scan-promo-list">
+                  <li>Real DNS and HTTP checks, not generated noise</li>
+                  <li>Seven checks with the exact record we found</li>
+                  <li>Plain-English fixes for everything that fails</li>
+                </ul>
+                <div className="scan-promo-actions">
+                  <Link className="btn btn-primary btn-lg" to="/scan" data-magnetic>
+                    Check if your site is secure
+                    <ArrowIcon />
+                  </Link>
+                  <span className="scan-promo-note mono">Free · no signup</span>
+                </div>
+              </div>
+              <div className="scan-promo-sample" aria-hidden="true">
+                <div className="scan-promo-row">
+                  <span className="scan-promo-host">stripe.com</span>
+                  <span className="scan-promo-grade">A</span>
+                </div>
+                <div className="scan-promo-bar"><i style={{ width: "100%" }}></i></div>
+                <div className="scan-promo-row">
+                  <span className="scan-promo-host">github.com</span>
+                  <span className="scan-promo-grade">A</span>
+                </div>
+                <div className="scan-promo-bar"><i style={{ width: "96%" }}></i></div>
+                <div className="scan-promo-row">
+                  <span className="scan-promo-host">wikipedia.org</span>
+                  <span className="scan-promo-grade">B</span>
+                </div>
+                <div className="scan-promo-bar"><i style={{ width: "88%" }}></i></div>
+                <div className="scan-promo-row">
+                  <span className="scan-promo-host">example.com</span>
+                  <span className="scan-promo-grade">B</span>
+                </div>
+                <div className="scan-promo-bar"><i style={{ width: "81%" }}></i></div>
               </div>
             </div>
           </div>
