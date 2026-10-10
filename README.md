@@ -99,7 +99,16 @@ function. Seven checks:
 | SPF | DNS-over-HTTPS | — |
 | DKIM | DNS-over-HTTPS, 6 common selectors | Custom selectors read as `unknown`, not `fail` |
 | DMARC | DNS-over-HTTPS | — |
-| Exposed files | 5 paths, parallel probes | — |
+| Exposed files | 5 paths, with catch-all detection | Cannot distinguish identical content served at two different real paths |
+
+**Catch-all / soft-404 detection.** Many hosts answer *every* path with HTTP 200 and the
+same page — Vite/React/Next SPAs on Vercel and Netlify, static hosts, and many CMSs. A
+naive "did `/.env` return 200?" test therefore reports five critical vulnerabilities on
+every SPA in the world. Before probing, the check requests a random path that cannot
+exist and treats any matching response as the catch-all page. It also rejects HTML
+responses (a real `.env` or `.sql` file is never HTML) and anything identical to the site
+root. When every probe matches the catch-all and nothing can be confirmed, the result is
+`unknown`, not `fail`.
 
 A check that cannot complete reports `unknown` and says why. Nothing is ever guessed.
 Scans resolve the host first and refuse private, loopback, link-local and

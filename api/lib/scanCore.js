@@ -408,6 +408,70 @@ async function checkDmarc(host) {
   return { rule: "dmarc", status: "pass", summary: `DMARC is enforcing with p=${policy}.`, evidence: [{ key: "DMARC", value: txt.slice(0, 200) }], weight: 0 };
 }
 
+/* ---------- exposed files ---------- */
+
+/**
+ * Many hosts answer *every* path with HTTP 200 and the same page. That is
+ * normal for single-page apps (Vercel/Netlify rewrites, static hosts, many
+ * CMSs) and it means a naive "did /.env return 200?" test reports five
+ * critical vulnerabilities on every SPA in the world.
+ *
+ * So we first probe a random path that cannot exist, and treat any response
+ * that matches it as the catch-all page rather than a real file. We also
+ * require the response to look like the file type we asked for, and require
+ * its body to differ from both the site root and the baseline page.
+ */
+async function probeForFile(host, targetPath, baseline, rootFingerprint) {
+  let res;
+  try {
+    res = await timedFetch(`https://${host}${targetPath}`);
+  } catch {
+    return { hit: false, note: `${targetPath} - could not check` };
+  }
+
+  if (res.status !== 200) {
+    return { hit: false, note: `${targetPath} - not exposed (HTTP ${res.status})` };
+  }
+
+  const contentType = (res.headers.get("content-type") || "").toLowerCase();
+  const text = await res.text().catch(() => "");
+  const sample = text.slice(0, 400);
+
+  // Identical to the catch-all 404 page for a path that cannot exist.
+  if (baseline && baseline.ok) {
+    if (sample.length === baseline.length && sample === baseline.sample) {
+      return { hit: false, note: `${targetPath} - not exposed (catch-all response)` };
+    }
+    // Very close in size to the baseline page: still almost certainly the SPA shell.
+    const sizeDelta = Math.abs(sample.length - baseline.length);
+    if (sizeDelta <= 8 && sample.slice(0, 120) === baseline.sample.slice(0, 120)) {
+      return { hit: false, note: `${targetPath} - not exposed (catch-all response)` };
+    }
+  }
+
+  // Identical to the site root: the router is serving the app for all paths.
+  if (rootFingerprint && sample.slice(0, 120) === rootFingerprint) {
+    return { hit: false, note: `${targetPath} - not exposed (same as site root)` };
+  }
+
+  // A .env or SQL dump is never HTML. HTML here means we got the app shell.
+  const looksHtml = contentType.includes("text/html") || sample.trim().slice(0, 40).startsWith("<!doctype html");
+  if (looksHtml) {
+    return { hit: false, note: `${targetPath} - not exposed (returned an HTML page)` };
+  }
+
+  // Content type must be plausible for the kind of file we asked for.
+  const expectsText = /json|javascript|plain|sql|text|xml|octet-stream/.test(contentType);
+  if (contentType && !expectsText) {
+    return { hit: false, note: `${targetPath} - not exposed (unexpected type ${contentType.split(";")[0]})` };
+  }
+
+  return {
+    hit: true,
+    note: `${targetPath} returned HTTP 200 (${contentType.split(";")[0] || "unknown type"}, ${text.length} bytes)`,
+  };
+}
+
 async function checkExposedFiles(host) {
   const exposedPaths = [
     { path: "/.env", label: "Environment file", why: "A leaked .env exposes database passwords and API keys." },
@@ -416,30 +480,43 @@ async function checkExposedFiles(host) {
     { path: "/wp-config.php.bak", label: "WordPress config backup", why: "Backup files of config files leak credentials." },
     { path: "/.DS_Store", label: "macOS directory file", why: "Leaks folder structure and sometimes filenames." },
   ];
+
+  // A path that cannot exist on any real host.
+  const baselinePath = "/__kernveil_missing_" + Math.random().toString(36).slice(2, 12) + "__";
+
+  const [baselineRes, rootRes] = await Promise.all([
+    timedFetch(`https://${host}${baselinePath}`).then(async (r) => {
+      const t = await r.text().catch(() => "");
+      return { ok: true, status: r.status, sample: t.slice(0, 400), length: t.length };
+    }).catch(() => ({ ok: false })),
+    timedFetch(`https://${host}/`).then(async (r) => {
+      const t = await r.text().catch(() => "");
+      return t.slice(0, 120);
+    }).catch(() => null),
+  ]);
+
   const evidence = [];
   const exposed = [];
+  const skipped = [];
 
   const probed = await Promise.all(
     exposedPaths.map(async (target) => {
-      try {
-        const res = await timedFetch(`https://${host}${target.path}`);
-        if (res.status !== 200) {
-          return { target, hit: false, note: `${target.path} - not exposed` };
-        }
-        // Guard against catch-all soft-404s returning 200 for everything.
-        const body = (await res.text()).slice(0, 200).toLowerCase();
-        const soft404 = body.includes("<html") && (body.includes("not found") || body.includes("404"));
-        if (soft404) return { target, hit: false, note: `${target.path} - not exposed` };
-        return { target, hit: true, note: `${target.path} returned HTTP 200` };
-      } catch {
-        return { target, hit: false, note: `${target.path} - could not check` };
-      }
+      const result = await probeForFile(host, target.path, baselineRes, rootRes);
+      return { target, ...result };
     })
   );
 
   for (const row of probed) {
     if (row.hit) exposed.push(row.target);
+    else if (String(row.note).includes("could not check")) skipped.push(row.target.label);
     evidence.push({ key: row.target.label, value: row.note });
+  }
+
+  if (baselineRes.ok) {
+    evidence.push({
+      key: "Catch-all baseline",
+      value: `${baselinePath} returned HTTP ${baselineRes.status} (${baselineRes.length} bytes)`,
+    });
   }
 
   if (exposed.length) {
@@ -451,7 +528,24 @@ async function checkExposedFiles(host) {
       weight: 15,
     };
   }
-  return { rule: "exposed-files", status: "pass", summary: `No common sensitive files are publicly reachable (${exposedPaths.length} paths checked).`, evidence, weight: 0 };
+
+  if (baselineRes.ok && baselineRes.status === 200 && skipped.length === exposedPaths.length) {
+    return {
+      rule: "exposed-files",
+      status: "unknown",
+      summary: `This host returns the same page for every path, so we could not confirm whether any of the ${exposedPaths.length} sensitive files are exposed.`,
+      evidence,
+      weight: 0,
+    };
+  }
+
+  return {
+    rule: "exposed-files",
+    status: "pass",
+    summary: `No common sensitive files are publicly reachable (${exposedPaths.length} paths checked).`,
+    evidence,
+    weight: 0,
+  };
 }
 
 /* ---------- orchestration ---------- */
