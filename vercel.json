@@ -7,6 +7,9 @@
   "functions": {
     "api/scan.js": {
       "maxDuration": 30
+    },
+    "api/verify.js": {
+      "maxDuration": 10
     }
   }
 }

@@ -304,6 +304,39 @@
   color: var(--text-2);
 }
 
+.scan-code {
+  flex: 0 1 150px;
+  letter-spacing: 0.3em;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+.scan-input[aria-invalid="true"] {
+  border-color: var(--red);
+}
+
+.scan-resend {
+  margin-top: 0.75rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-3);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--dur);
+}
+
+.scan-resend:hover:not(:disabled) {
+  color: var(--text-1);
+}
+
+.scan-resend:disabled {
+  opacity: 0.6;
+}
+
 /* ---------- sent confirmation ---------- */
 
 .scan-sent {

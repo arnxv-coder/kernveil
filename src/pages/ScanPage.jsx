@@ -25,6 +25,10 @@ export default function ScanPage() {
   const [sentTo, setSentTo] = useState(null);
   const [notice, setNotice] = useState(null);
   const [unlocking, setUnlocking] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [fieldError, setFieldError] = useState(null);
   const resultRef = useRef(null);
 
   useEffect(() => {
@@ -55,13 +59,19 @@ export default function ScanPage() {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ host: value, ...(withEmail ? { email: email.trim() } : {}) }),
+        body: JSON.stringify({
+          host: value,
+          ...(withEmail ? { email: email.trim(), code: code.trim() } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data.needsCode) setCodeSent(true);
+        setFieldError(data.field === "code" ? "code" : data.field === "email" ? "email" : null);
         setError(data.error || "That scan could not be completed. Try again.");
         return;
       }
+      setFieldError(null);
       setPreview(data.preview || null);
       if (data.emailed) {
         setSentTo(data.emailedTo);
@@ -86,8 +96,43 @@ export default function ScanPage() {
     runScan(false);
   };
 
+  const sendCode = async () => {
+    const value = email.trim();
+    if (!value) {
+      setFieldError("email");
+      setError("Enter your email address first.");
+      return;
+    }
+    setError(null);
+    setFieldError(null);
+    setSendingCode(true);
+    try {
+      const res = await fetch("/api/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFieldError(data.code === "NO_PROVIDER" ? null : "email");
+        setError(data.error || "We could not send a code to that address.");
+        return;
+      }
+      setCodeSent(true);
+      setNotice("Check your inbox — we sent a 6-digit code.");
+    } catch {
+      setError("Network error — we could not reach the server.");
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
   const onUnlock = (e) => {
     e.preventDefault();
+    if (!codeSent) {
+      sendCode();
+      return;
+    }
     runScan(true);
   };
 
@@ -98,6 +143,9 @@ export default function ScanPage() {
     setError(null);
     setNotice(null);
     setEmail("");
+    setCode("");
+    setCodeSent(false);
+    setFieldError(null);
   };
 
   return (
@@ -197,20 +245,62 @@ export default function ScanPage() {
                   <p className="scan-gate-sub">
                     Every failing check, the exact record we found, and how to fix it.
                   </p>
+
                   <form className="scan-row" onSubmit={onUnlock}>
                     <input
                       className="scan-input"
                       type="email"
                       placeholder="you@company.com"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => { setEmail(e.target.value); setCodeSent(false); }}
                       autoComplete="email"
+                      readOnly={codeSent}
+                      aria-invalid={fieldError === "email"}
                       required
                     />
-                    <button className="scan-go" type="submit" disabled={busy}>
-                      {unlocking ? "Unlocking…" : "Unlock report"}
-                    </button>
+                    {codeSent ? (
+                      <>
+                        <input
+                          className="scan-input scan-code"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={6}
+                          placeholder="6-digit code"
+                          value={code}
+                          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          autoComplete="one-time-code"
+                          aria-label="Verification code"
+                          aria-invalid={fieldError === "code"}
+                          required
+                        />
+                        <button className="scan-go" type="submit" disabled={busy}>
+                          {unlocking ? "Sending…" : "Get report"}
+                        </button>
+                      </>
+                    ) : (
+                      <button className="scan-go" type="submit" disabled={sendingCode}>
+                        {sendingCode ? "Sending…" : "Email me the report"}
+                      </button>
+                    )}
                   </form>
+
+                  <p className="scan-hint">
+                    {codeSent
+                      ? "Enter the code we sent. It expires in 10 minutes."
+                      : "We'll email you a 6-digit code to confirm the address, then send the report. Disposable inboxes are not accepted."}
+                  </p>
+
+                  {codeSent && (
+                    <button
+                      className="scan-resend"
+                      type="button"
+                      onClick={sendCode}
+                      disabled={sendingCode}
+                    >
+                      Use a different address
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
