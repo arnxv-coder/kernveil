@@ -304,6 +304,81 @@
   color: var(--text-2);
 }
 
+/* ---------- sent confirmation ---------- */
+
+.scan-sent {
+  padding: clamp(1.75rem, 5vw, 2.75rem);
+  border: 1px solid rgba(86, 201, 143, 0.28);
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.scan-sent-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 1.1rem;
+  border-radius: 50%;
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid rgba(86, 201, 143, 0.3);
+}
+
+.scan-sent-title {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.scan-sent-sub {
+  margin: 0 auto 0.9rem;
+  max-width: 48ch;
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.scan-sent-sub strong {
+  color: var(--text-1);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.scan-sent-note {
+  margin: 0 auto 1.6rem;
+  max-width: 46ch;
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  color: var(--text-3);
+}
+
+.scan-sent-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.scan-sent-actions .scan-go {
+  width: auto;
+}
+
+.scan-sent-home {
+  font-size: var(--fs-md);
+  color: var(--text-3);
+  text-decoration: none;
+  transition: color var(--dur);
+}
+
+.scan-sent-home:hover {
+  color: var(--text-1);
+}
+
 /* ---------- checks ---------- */
 
 .scan-checks {

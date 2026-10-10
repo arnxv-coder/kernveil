@@ -22,6 +22,7 @@ export default function ScanPage() {
   const [error, setError] = useState(null);
   const [preview, setPreview] = useState(null);
   const [report, setReport] = useState(null);
+  const [sentTo, setSentTo] = useState(null);
   const [notice, setNotice] = useState(null);
   const [unlocking, setUnlocking] = useState(false);
   const resultRef = useRef(null);
@@ -62,9 +63,13 @@ export default function ScanPage() {
         return;
       }
       setPreview(data.preview || null);
-      if (data.report) {
+      if (data.emailed) {
+        setSentTo(data.emailedTo);
+        setReport(null);
+      } else if (data.report) {
+        // Delivery failed, so show it here rather than dead-ending.
+        setSentTo(null);
         setReport(data.report);
-        setNotice("Report unlocked. We sent a copy to your inbox.");
       } else if (data.message) {
         setError(data.message);
       }
@@ -89,6 +94,7 @@ export default function ScanPage() {
   const reset = () => {
     setPreview(null);
     setReport(null);
+    setSentTo(null);
     setError(null);
     setNotice(null);
     setEmail("");
@@ -146,7 +152,31 @@ export default function ScanPage() {
 
         {preview && preview.resolvable && (
           <section className="scan-result" ref={resultRef}>
-            {!report ? (
+            {sentTo ? (
+              <div className="scan-sent">
+                <span className="scan-sent-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+                <h2 className="scan-sent-title">Your report is on its way.</h2>
+                <p className="scan-sent-sub">
+                  We sent the full report for <strong>{preview.host}</strong> to{" "}
+                  <strong>{sentTo}</strong>. It has every check, the exact record we
+                  found, and how to fix what failed.
+                </p>
+                <p className="scan-sent-note">
+                  It should arrive within a minute. Check spam if it hasn't — and make sure
+                  you allow mail from the sending address.
+                </p>
+                <div className="scan-sent-actions">
+                  <button className="scan-go scan-go-ghost" type="button" onClick={reset}>
+                    Scan another domain
+                  </button>
+                  <Link className="scan-sent-home" to="/">Back to Kernveil</Link>
+                </div>
+              </div>
+            ) : !report ? (
               <div className="scan-teaser">
                 <div className="scan-score">
                   <span className="scan-grade" data-tone={GRADE_TONE[preview.grade] || "none"}>
