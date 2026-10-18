@@ -39,11 +39,14 @@ function hit(map, key, limit) {
   const list = (map.get(key) || []).filter((t) => now - t < 3600_000);
   if (list.length >= limit) {
     map.set(key, list);
-    return true;
+    // Report when the oldest hit ages out so the message can be honest,
+    // instead of telling someone to wait a minute for an hourly cap.
+    const retryMins = Math.max(1, Math.ceil((list[0] + 3600_000 - now) / 60000));
+    return { blocked: true, retryMins };
   }
   list.push(now);
   map.set(key, list);
-  return false;
+  return { blocked: false };
 }
 
 function clientIp(req) {
@@ -78,14 +81,17 @@ export default async function handler(req, res) {
     });
   }
 
-  if (hit(ipHits, clientIp(req), MAX_SENDS_PER_IP_HOUR)) {
+  const ipLimit = hit(ipHits, clientIp(req), MAX_SENDS_PER_IP_HOUR);
+  if (ipLimit.blocked) {
     return res.status(429).json({
-      error: "Too many verification emails requested from this network. Try again later.",
+      error: `Too many verification emails from this network. Try again in ${ipLimit.retryMins} minute${ipLimit.retryMins > 1 ? "s" : ""}.`,
     });
   }
-  if (hit(addrHits, check.email, MAX_SENDS_PER_ADDRESS_HOUR)) {
+
+  const addrLimit = hit(addrHits, check.email, MAX_SENDS_PER_ADDRESS_HOUR);
+  if (addrLimit.blocked) {
     return res.status(429).json({
-      error: "We already sent a code to that address a moment ago. Give it a minute.",
+      error: `We already sent several codes to that address. Try again in ${addrLimit.retryMins} minute${addrLimit.retryMins > 1 ? "s" : ""}, or use a different address.`,
     });
   }
 

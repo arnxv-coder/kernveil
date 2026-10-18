@@ -90,7 +90,7 @@ export default function ScanPage() {
       setBusy(false);
       setUnlocking(false);
     }
-  }, [host, email]);
+  }, [host, email, code]);
 
   const onSubmit = (e) => {
     e.preventDefault();

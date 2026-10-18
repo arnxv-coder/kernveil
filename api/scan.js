@@ -26,7 +26,9 @@ import { send } from "./lib/mailer.js";
 import { checkToken, tokenFromCookie } from "./lib/verifyToken.js";
 
 const WINDOW_MS = 60 * 60 * 1000;
-const MAX_PER_WINDOW = 8;
+// Generous enough that people sharing an office, campus or carrier NAT are not
+// locked out by colleagues' scans, while still capping automated abuse.
+const MAX_PER_WINDOW = 30;
 const BUCKETS = new Map();
 
 function clientKey(req) {
