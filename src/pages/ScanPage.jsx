@@ -59,6 +59,7 @@ export default function ScanPage() {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin", // carries the signed verification cookie
         body: JSON.stringify({
           host: value,
           ...(withEmail ? { email: email.trim(), code: code.trim() } : {}),
@@ -110,6 +111,7 @@ export default function ScanPage() {
       const res = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin", // carries the signed verification cookie
         body: JSON.stringify({ email: value }),
       });
       const data = await res.json().catch(() => ({}));

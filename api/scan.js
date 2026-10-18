@@ -23,11 +23,10 @@ import { scanHost, toPreview } from "./lib/scanCore.js";
 import { buildReportHtml, buildReportText, buildReportSubject } from "./lib/reportEmail.js";
 import { validateEmail } from "./lib/emailGuard.js";
 import { send } from "./lib/mailer.js";
-import { store as codeStore } from "./verify.js";
+import { checkToken, tokenFromCookie } from "./lib/verifyToken.js";
 
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_PER_WINDOW = 8;
-const MAX_CODE_TRIES = 5;
 const BUCKETS = new Map();
 
 function clientKey(req) {
@@ -91,51 +90,13 @@ async function notifyLead({ host, email, result, delivery }) {
 }
 
 /**
- * Checks a submitted code against the one emailed to that address.
- * Codes are single-use and expire; wrong guesses are capped so a 6-digit
- * space cannot be brute-forced from a single address.
+ * Verifies the submitted code against the signed token in the HttpOnly
+ * cookie set by /api/verify. The token is self-contained, so this works
+ * no matter which serverless instance handles the request.
  */
-function checkCode(email, submitted) {
-  const entry = codeStore.get(email);
-
-  if (!entry) return { ok: false, error: "Request a new code - the previous one is no longer valid." };
-
-  if (entry.lockedUntil) {
-    if (Date.now() < entry.lockedUntil) {
-      const mins = Math.max(1, Math.ceil((entry.lockedUntil - Date.now()) / 60000));
-      return {
-        ok: false,
-        error: `Too many incorrect attempts. Request a new code in ${mins} minute${mins > 1 ? "s" : ""}.`,
-      };
-    }
-    codeStore.delete(email);
-    return { ok: false, error: "Request a new code." };
-  }
-
-  if (Date.now() > entry.expires) {
-    codeStore.delete(email);
-    return { ok: false, error: "That code has expired. Request a new one." };
-  }
-
-  entry.tries += 1;
-
-  if (entry.tries > MAX_CODE_TRIES) {
-    // Lock the address out for the remainder of the code's life rather than
-    // deleting it, so the visitor is told the truth about why it is refused.
-    entry.lockedUntil = entry.expires;
-    return { ok: false, error: "Too many incorrect attempts. Request a new code shortly." };
-  }
-
-  if (String(submitted || "").trim() !== entry.code) {
-    const left = MAX_CODE_TRIES - entry.tries;
-    return {
-      ok: false,
-      error: `That code is not right.${left > 0 ? ` ${left} attempt${left > 1 ? "s" : ""} left.` : ""}`,
-    };
-  }
-
-  codeStore.delete(email); // single use
-  return { ok: true };
+function verifySubmittedCode(req, email, submitted) {
+  const token = tokenFromCookie(req.headers && req.headers.cookie);
+  return checkToken(token, email, submitted);
 }
 
 export default async function handler(req, res) {
@@ -170,7 +131,7 @@ export default async function handler(req, res) {
   if (email) {
     const check = validateEmail(email);
     if (!check.ok) return res.status(400).json({ error: check.error, field: "email" });
-    const verified = checkCode(check.email, code);
+    const verified = verifySubmittedCode(req, check.email, code);
     if (!verified.ok) {
       return res.status(401).json({ error: verified.error, field: "code", needsCode: true });
     }

@@ -1,51 +1,49 @@
 /* ============================================================
    Kernveil — /api/verify
-   Sends a one-time code so we know an address is real before handing over a
-   report. This is what stops junk leads: a visitor cannot unlock a report
-   with an address they do not control.
+   Emails a one-time code and hands the browser a signed, expiring
+   token in an HttpOnly cookie. Nothing is stored server-side, so this
+   works regardless of which serverless instance handles the request.
 
-   The code is held in memory with a short expiry. That is fine for a
-   single-instance lead magnet; a real deployment would move it to a
-   shared store.
+   Still rate limited per IP and per address to stop it being used as a
+   free mail cannon.
    ============================================================ */
 
 import { validateEmail } from "./lib/emailGuard.js";
-import { send, canReachVisitors, makeCode } from "./lib/mailer.js";
+import { send, canReachVisitors } from "./lib/mailer.js";
+import { issueToken, cookieHeader, newCode } from "./lib/verifyToken.js";
 
-const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_SENDS_PER_IP_HOUR = 5;
-const MAX_SENDS_PER_EMAIL_HOUR = 3;
-const RESEND_AFTER_MS = 45 * 1000;
+const MAX_SENDS_PER_ADDRESS_HOUR = 3;
+const RESEND_AFTER_MS = 60 * 1000;
+const TOKEN_TTL_SECONDS = 10 * 60;
 
-const codes = new Map(); // email -> { code, expires, sentAt, tries }
-const ipHits = new Map(); // ip -> [timestamps]
+const ipHits = new Map();   // ip -> timestamps
+const addrHits = new Map(); // email -> timestamps
 
 function prune() {
   const now = Date.now();
-  for (const [k, v] of codes) if (v.expires < now) codes.delete(k);
   for (const [k, list] of ipHits) {
     const kept = list.filter((t) => now - t < 3600_000);
     if (kept.length) ipHits.set(k, kept);
     else ipHits.delete(k);
   }
+  for (const [k, list] of addrHits) {
+    const kept = list.filter((t) => now - t < 3600_000);
+    if (kept.length) addrHits.set(k, kept);
+    else addrHits.delete(k);
+  }
 }
 
-function ipRateLimited(ip) {
+function hit(map, key, limit) {
   const now = Date.now();
-  const list = (ipHits.get(ip) || []).filter((t) => now - t < 3600_000);
-  if (list.length >= MAX_SENDS_PER_IP_HOUR) {
-    ipHits.set(ip, list);
+  const list = (map.get(key) || []).filter((t) => now - t < 3600_000);
+  if (list.length >= limit) {
+    map.set(key, list);
     return true;
   }
   list.push(now);
-  ipHits.set(ip, list);
+  map.set(key, list);
   return false;
-}
-
-function emailRateLimited(email) {
-  const entry = codes.get(email);
-  if (!entry) return false;
-  return entry.sentAt && Date.now() - entry.sentAt < RESEND_AFTER_MS;
 }
 
 function clientIp(req) {
@@ -71,7 +69,7 @@ export default async function handler(req, res) {
   }
 
   const check = validateEmail(email);
-  if (!check.ok) return res.status(400).json({ error: check.error });
+  if (!check.ok) return res.status(400).json({ error: check.error, field: "email" });
 
   if (!canReachVisitors()) {
     return res.status(503).json({
@@ -80,20 +78,18 @@ export default async function handler(req, res) {
     });
   }
 
-  const ip = clientIp(req);
-  if (ipRateLimited(ip)) {
+  if (hit(ipHits, clientIp(req), MAX_SENDS_PER_IP_HOUR)) {
     return res.status(429).json({
       error: "Too many verification emails requested from this network. Try again later.",
     });
   }
-  if (emailRateLimited(check.email)) {
+  if (hit(addrHits, check.email, MAX_SENDS_PER_ADDRESS_HOUR)) {
     return res.status(429).json({
       error: "We already sent a code to that address a moment ago. Give it a minute.",
     });
   }
 
-  const code = makeCode();
-  codes.set(check.email, { code, expires: Date.now() + CODE_TTL_MS, sentAt: Date.now(), tries: 0 });
+  const code = newCode();
 
   const result = await send({
     to: check.email,
@@ -101,8 +97,8 @@ export default async function handler(req, res) {
     text: [
       `Your Kernveil verification code is ${code}`,
       ``,
-      `Enter it to receive your security report.`,
-      `The code expires in 10 minutes and can only be used once.`,
+      `Enter it on the scan page to receive your security report.`,
+      `The code expires in 10 minutes.`,
       ``,
       `If you did not request a scan, you can ignore this email.`,
     ].join("\n"),
@@ -125,8 +121,7 @@ export default async function handler(req, res) {
     });
   }
 
+  // The browser holds the signed token; the server keeps nothing.
+  res.setHeader("Set-Cookie", cookieHeader(issueToken(code, check.email), TOKEN_TTL_SECONDS));
   return res.status(200).json({ sent: true, email: check.email });
 }
-
-/** Exposed for /api/scan, which needs to check a submitted code. */
-export const store = codes;
